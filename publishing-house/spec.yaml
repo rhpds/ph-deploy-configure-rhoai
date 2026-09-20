@@ -32,7 +32,7 @@ spec:
   - id: module-02
     title: Install (Disconnected)
     duration_min: 40
-    status: complete
+    status: in_progress
   - id: module-03
     title: Model-Serving Platform
     duration_min: 20
