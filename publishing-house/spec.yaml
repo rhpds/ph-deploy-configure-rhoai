@@ -1,102 +1,88 @@
-# Publishing House — Project Spec
-# Lifecycle: intake → content_review → infra_review → jira_sync → development → ready → published
-# No secrets in this file. Tokens live in ~/.config/publishing-house/auth.json
-# Stage is managed by SonataFlow and cached in .ph-state — do not edit stage.current manually.
-# NOTE: This file is also in the template repo. The Scaffolder overlays project.* values.
-# TODO: Eliminate this copy — Scaffolder should pull from template repo directly.
-
 project:
-  slug: "ph-deploy-configure-rhoai"
-  owner_email: "psrivast@redhat.com"
-  content_type: "lab"
-  deployment_mode: "rhdp_published"
-  initiative_key: "none"
-  showroom_type: "classic"
-  intake_type: "migration"
-  automation_type: "ansible"
-  description: "RHOAI Deploy & Configure Workshop — A CPU-completable, hands-on lab that walks participants through installing, configuring, serving (vLLM), governing (MaaS), scaling (llm-d + KEDA), and observing Red Hat OpenShift AI on OCP 4.19+. Supports RHOAI 3.4 and 3.5 from a single codebase using conditional content gating."
-  # content_reviewer_email and infra_reviewer_email are assigned by the RHDP team — not set by the author
-  jira_ticket: "RHDPCD-1978"
-  workflow_id: "742e608c-f4a7-4e64-8b83-28692a935018"
-
+  slug: ph-deploy-configure-rhoai
+  owner_email: psrivast@redhat.com
+  content_type: lab
+  deployment_mode: rhdp_published
+  initiative_key: none
+  showroom_type: classic
+  intake_type: migration
+  automation_type: ansible
+  description: "RHOAI Deploy & Configure Workshop \u2014 A CPU-completable, hands-on lab that walks participants through installing,\
+    \ configuring, serving (vLLM), governing (MaaS), scaling (llm-d + KEDA), and observing Red Hat OpenShift AI on OCP 4.19+.\
+    \ Supports RHOAI 3.4 and 3.5 from a single codebase using conditional content gating."
+  jira_ticket: RHDPCD-1978
+  workflow_id: 742e608c-f4a7-4e64-8b83-28692a935018
 spec:
-  title: "RHOAI Deploy & Configure Workshop"
+  title: RHOAI Deploy & Configure Workshop
   learning_objectives:
-    - "Install the RHOAI Operator from OLM in connected and air-gapped cluster environments"
-    - "Configure a DataScienceCluster resource with KServe single-model serving and MaaS components enabled"
-    - "Deploy a CPU-optimized LLM as a KServe InferenceService using the vLLM CPU runtime"
-    - "Verify inference API responses through authenticated requests to the OpenAI-compatible endpoint"
-    - "Deploy the MaaS governance stack including PostgreSQL, Red Hat Connectivity Link, Authorino, and Limitador"
-    - "Govern LLM access by provisioning API keys, enforcing rate limits, and observing MaaS telemetry"
-    - "Configure ExternalModel resources to proxy external AI provider endpoints through the MaaS gateway"
-    - "Deploy llm-d with KEDA autoscaling driven by vLLM queue metrics from Thanos Querier"
-    - "Analyze replica scaling behavior by driving inference load and monitoring scale-up events"
-  modules:              # [{id, title, duration_min}] — written by intake Phase 4; id is stable (e.g. module-01)
-    - id: module-01
-      title: "Install (Connected)"
-      duration_min: 25
-      status: not_started
-    - id: module-02
-      title: "Install (Disconnected)"
-      duration_min: 40
-      status: not_started
-    - id: module-03
-      title: "Model-Serving Platform"
-      duration_min: 20
-      status: not_started
-    - id: module-04
-      title: "Serving with vLLM"
-      duration_min: 30
-      status: not_started
-    - id: module-05
-      title: "MaaS Governance"
-      duration_min: 60
-      status: not_started
-    - id: module-06
-      title: "Scaling llm-d"
-      duration_min: 45
-      status: not_started
+  - Install the RHOAI Operator from OLM in connected and air-gapped cluster environments
+  - Configure a DataScienceCluster resource with KServe single-model serving and MaaS components enabled
+  - Deploy a CPU-optimized LLM as a KServe InferenceService using the vLLM CPU runtime
+  - Verify inference API responses through authenticated requests to the OpenAI-compatible endpoint
+  - Deploy the MaaS governance stack including PostgreSQL, Red Hat Connectivity Link, Authorino, and Limitador
+  - Govern LLM access by provisioning API keys, enforcing rate limits, and observing MaaS telemetry
+  - Configure ExternalModel resources to proxy external AI provider endpoints through the MaaS gateway
+  - Deploy llm-d with KEDA autoscaling driven by vLLM queue metrics from Thanos Querier
+  - Analyze replica scaling behavior by driving inference load and monitoring scale-up events
+  modules:
+  - id: module-01
+    title: Install (Connected)
+    duration_min: 25
+    status: complete
+  - id: module-02
+    title: Install (Disconnected)
+    duration_min: 40
+    status: complete
+  - id: module-03
+    title: Model-Serving Platform
+    duration_min: 20
+    status: complete
+  - id: module-04
+    title: Serving with vLLM
+    duration_min: 30
+    status: complete
+  - id: module-05
+    title: MaaS Governance
+    duration_min: 60
+    status: complete
+  - id: module-06
+    title: Scaling llm-d
+    duration_min: 45
+    status: complete
   environment:
-    platform: "ocp"              # ocp | rhel-vms — determines which sizing fields apply
-    topology: "per-student"    # shared-cluster | per-student | cnv-pool
-    cloud_provider: cnv        # cnv | aws — cnv is default
-    max_concurrent_users: null # required if topology = shared-cluster
-
-    # --- OCP-specific fields (only when platform = ocp) ---
-    ocp_version: "4.20"                  # e.g. 4.20 — minimum 4.20; leave empty for rhel-vms
-    cluster_type: "multinode"          # sno | multinode — only for platform = ocp
-    control_plane_instance_count: 1    # 1 if sno, 3 if multinode
-    control_plane_cpu: 32              # 32 if sno, 16 if multinode
-    control_plane_ram_gb: 128          # 128 if sno, 64 if multinode
-    worker_count: 1                    # number of OCP worker nodes
-    worker_cpu: 32                     # vCPU per worker
-    worker_ram_gb: 128                 # RAM per worker in GB
-    worker_disk_gb: 300                # disk per worker in GB
-
-    # --- VM-specific fields (only when platform = rhel-vms) ---
-    # Each entry: {role, count, cpu, ram_gb, disk_gb, os}
+    platform: ocp
+    topology: per-student
+    cloud_provider: cnv
+    max_concurrent_users: null
+    ocp_version: '4.20'
+    cluster_type: multinode
+    control_plane_instance_count: 1
+    control_plane_cpu: 32
+    control_plane_ram_gb: 128
+    worker_count: 1
+    worker_cpu: 32
+    worker_ram_gb: 128
+    worker_disk_gb: 300
     vms_per_student: []
-
-    # --- Common fields (both platforms) ---
-    aap_version: ""                    # required if AAP in products
-    ai_requirement: "maas"            # maas | gpu | none
-    ai_model_tier: "open-source"      # open-source | frontier (if ai_requirement = maas or gpu)
-    ai_model_name: "qwen2.5-0.5b-instruct"  # specific model e.g. granite-3.1-8b
-    ai_justification: ""               # required if ai_model_tier = frontier or ai_requirement = gpu
-    non_ga_products:                   # list of non-GA products/versions
-      - "Red Hat OpenShift AI MaaS (Tech Preview)"
-      - "llm-d (Tech Preview)"
-    non_ga_access_plan: "Tech Preview features available via standard RHOAI operator installation from OLM; no special access required"
-    external_services:                 # named external service dependencies e.g. [github.com]
-      - "quay.io"
-      - "registry.redhat.io"
-      - "mirror.openshift.com"
-      - "github.com"
-    gpu_nodes: 0                       # number of GPU nodes (0 = none)
-    gpu_type: ""                       # e.g. NVIDIA A100 40GB (required if gpu_nodes > 0)
+    aap_version: ''
+    ai_requirement: maas
+    ai_model_tier: open-source
+    ai_model_name: qwen2.5-0.5b-instruct
+    ai_justification: ''
+    non_ga_products:
+    - Red Hat OpenShift AI MaaS (Tech Preview)
+    - llm-d (Tech Preview)
+    non_ga_access_plan: Tech Preview features available via standard RHOAI operator installation from OLM; no special access
+      required
+    external_services:
+    - quay.io
+    - registry.redhat.io
+    - mirror.openshift.com
+    - github.com
+    gpu_nodes: 0
+    gpu_type: ''
   duration_hours: 4
-  audience: "advanced"               # beginner | intermediate | advanced
-
+  audience: advanced
 development:
   automation:
     ansible:
@@ -105,75 +91,86 @@ development:
     status: not_started
   healthCheck:
     status: not_started
-
 compliance:
   last_hard_check: null
   hard_result: null
-
 tracking:
   paused: false
   pause_reason: null
-
-# Approval checklist — filled collaboratively by author + skill + system + reviewers
 approval_checklist:
-
   content:
     prerequisites_verifiable: null
-    assessment_strategy: ""
-    catalog_gap: ""
-    design_overview: "An end-to-end, CPU-only RHOAI deployment and operations lab for advanced OCP platform administrators and MLOps engineers, covering operator installation in connected and disconnected environments, KServe single-model serving with the vLLM CPU runtime, MaaS governance with Kuadrant/Authorino/Limitador and COO observability, and KEDA-based autoscaling for llm-d workloads. The lab supports RHOAI 3.4 and 3.5 from a single Kustomize codebase using conditional content gating."
+    assessment_strategy: ''
+    catalog_gap: "This lab uniquely covers the full RHOAI platform engineering lifecycle \u2014 from Operator installation\
+      \ in both connected and air-gapped environments, through CPU-only vLLM model serving with KServe, to MaaS governance\
+      \ with Kuadrant/Authorino/Limitador, and KEDA-based autoscaling with llm-d \u2014 all completable without GPU hardware.\
+      \ Existing catalog items cover either MaaS consumption by developers (not platform setup), GPU-accelerated llm-d benchmarking,\
+      \ or vLLM in isolation; none walk a platform engineer through the complete install-to-govern-to-scale workflow on CPU-only\
+      \ infrastructure."
+    design_overview: An end-to-end, CPU-only RHOAI deployment and operations lab for advanced OCP platform administrators
+      and MLOps engineers, covering operator installation in connected and disconnected environments, KServe single-model
+      serving with the vLLM CPU runtime, MaaS governance with Kuadrant/Authorino/Limitador and COO observability, and KEDA-based
+      autoscaling for llm-d workloads. The lab supports RHOAI 3.4 and 3.5 from a single Kustomize codebase using conditional
+      content gating.
     module_summaries:
-      - title: "Module 1: Install (Connected)"
-        overview: "Install the RHOAI Operator from OLM and create a DataScienceCluster with KServe on a connected OCP cluster."
-      - title: "Module 2: Install (Disconnected)"
-        overview: "Mirror RHOAI images with oc-mirror v2 and complete an offline RHOAI installation in an air-gapped cluster."
-      - title: "Module 3: Model-Serving Platform"
-        overview: "Create the workshop project, enable KServe single-model serving cluster-wide, and instantiate the vLLM CPU ServingRuntime."
-      - title: "Module 4: Serving with vLLM"
-        overview: "Deploy Qwen2.5-0.5B-Instruct as a KServe InferenceService and make authenticated OpenAI-compatible inference requests."
-      - title: "Module 5: MaaS Governance"
-        overview: "Stand up the full MaaS governance stack with PostgreSQL, Kuadrant, Authorino, Limitador, and COO observability; govern models via API keys and rate limiting."
-      - title: "Module 6: Scaling llm-d"
-        overview: "Install KEDA, deploy llm-d with InferencePool, and configure a ScaledObject driven by vLLM queue metrics from Thanos Querier to auto-scale under load."
+    - title: 'Module 1: Install (Connected)'
+      overview: Install the RHOAI Operator from OLM and create a DataScienceCluster with KServe on a connected OCP cluster.
+    - title: 'Module 2: Install (Disconnected)'
+      overview: Mirror RHOAI images with oc-mirror v2 and complete an offline RHOAI installation in an air-gapped cluster.
+    - title: 'Module 3: Model-Serving Platform'
+      overview: Create the workshop project, enable KServe single-model serving cluster-wide, and instantiate the vLLM CPU
+        ServingRuntime.
+    - title: 'Module 4: Serving with vLLM'
+      overview: Deploy Qwen2.5-0.5B-Instruct as a KServe InferenceService and make authenticated OpenAI-compatible inference
+        requests.
+    - title: 'Module 5: MaaS Governance'
+      overview: Stand up the full MaaS governance stack with PostgreSQL, Kuadrant, Authorino, Limitador, and COO observability;
+        govern models via API keys and rate limiting.
+    - title: 'Module 6: Scaling llm-d'
+      overview: Install KEDA, deploy llm-d with InferencePool, and configure a ScaledObject driven by vLLM queue metrics from
+        Thanos Querier to auto-scale under load.
     rcars_overlap_pct: 100
     rcars_top_matches:
-      - title: "Private Model as a Service - A Practical Guide to Red Hat AI"
-        ci_name: "published.private-maas-v3.prod"
-        url: "https://catalog.demo.redhat.com/catalog?item=published.private-maas-v3.prod"
-        relevance_score: 100
-        why_it_fits: "Directly covers Models-as-a-Service architecture on Red Hat OpenShift AI, including foundation model deployment, LLM inference endpoints, API governance, and observability — closely matching the focus on deploying, configuring, governing, and scaling AI model serving."
-        workloads:
-          - role: "ocp4_workload_authentication_keycloak"
-            collection: "agnosticd.core_workloads"
-          - role: "ocp4_workload_cert_manager"
-            collection: "agnosticd.core_workloads"
-          - role: "ocp4_workload_gitops_bootstrap"
-            collection: "agnosticd.core_workloads"
-          - role: "ocp4_workload_machinesets"
-            collection: "agnosticd.core_workloads"
-          - role: "ocp4_workload_openshift_gitops"
-            collection: "agnosticd.core_workloads"
-          - role: "ocp4_workload_showroom"
-            collection: "agnosticd.core_workloads"
-      - title: "Introducing llm-d: Your Production-Ready Path to Scalable LLM Inference"
-        ci_name: "published.llm-d-intro.prod"
-        url: "https://catalog.demo.redhat.com/catalog?item=published.llm-d-intro.prod"
-        relevance_score: 96
-        why_it_fits: "Directly covers llm-d, vLLM, and scalable LLM inference on OpenShift, aligning closely with the focus on deploying, configuring, and scaling AI model serving — but targets GPU-accelerated workloads on AWS and does not cover MaaS governance or the connected/disconnected install path."
-        workloads: []
-      - title: "LB2861 Introducing llm-d: Your Production-Ready Path to Scalable LLM Inference (AWS)"
-        ci_name: "summit-2026.lb2861-introducing-llm-d-aws.prod"
-        url: "https://catalog.demo.redhat.com/catalog?item=summit-2026.lb2861-introducing-llm-d-aws.prod"
-        relevance_score: 93
-        why_it_fits: "Covers llm-d, KServe, vLLM, and OpenShift AI in a hands-on deployment and benchmarking context — but requires AWS-provisioned GPU infrastructure, which conflicts with the CPU-only constraint of this lab."
-        workloads: []
-    catalog_gap: "This lab uniquely covers the full RHOAI platform engineering lifecycle — from Operator installation in both connected and air-gapped environments, through CPU-only vLLM model serving with KServe, to MaaS governance with Kuadrant/Authorino/Limitador, and KEDA-based autoscaling with llm-d — all completable without GPU hardware. Existing catalog items cover either MaaS consumption by developers (not platform setup), GPU-accelerated llm-d benchmarking, or vLLM in isolation; none walk a platform engineer through the complete install-to-govern-to-scale workflow on CPU-only infrastructure."
+    - title: Private Model as a Service - A Practical Guide to Red Hat AI
+      ci_name: published.private-maas-v3.prod
+      url: https://catalog.demo.redhat.com/catalog?item=published.private-maas-v3.prod
+      relevance_score: 100
+      why_it_fits: "Directly covers Models-as-a-Service architecture on Red Hat OpenShift AI, including foundation model deployment,\
+        \ LLM inference endpoints, API governance, and observability \u2014 closely matching the focus on deploying, configuring,\
+        \ governing, and scaling AI model serving."
+      workloads:
+      - role: ocp4_workload_authentication_keycloak
+        collection: agnosticd.core_workloads
+      - role: ocp4_workload_cert_manager
+        collection: agnosticd.core_workloads
+      - role: ocp4_workload_gitops_bootstrap
+        collection: agnosticd.core_workloads
+      - role: ocp4_workload_machinesets
+        collection: agnosticd.core_workloads
+      - role: ocp4_workload_openshift_gitops
+        collection: agnosticd.core_workloads
+      - role: ocp4_workload_showroom
+        collection: agnosticd.core_workloads
+    - title: 'Introducing llm-d: Your Production-Ready Path to Scalable LLM Inference'
+      ci_name: published.llm-d-intro.prod
+      url: https://catalog.demo.redhat.com/catalog?item=published.llm-d-intro.prod
+      relevance_score: 96
+      why_it_fits: "Directly covers llm-d, vLLM, and scalable LLM inference on OpenShift, aligning closely with the focus\
+        \ on deploying, configuring, and scaling AI model serving \u2014 but targets GPU-accelerated workloads on AWS and\
+        \ does not cover MaaS governance or the connected/disconnected install path."
+      workloads: []
+    - title: 'LB2861 Introducing llm-d: Your Production-Ready Path to Scalable LLM Inference (AWS)'
+      ci_name: summit-2026.lb2861-introducing-llm-d-aws.prod
+      url: https://catalog.demo.redhat.com/catalog?item=summit-2026.lb2861-introducing-llm-d-aws.prod
+      relevance_score: 93
+      why_it_fits: "Covers llm-d, KServe, vLLM, and OpenShift AI in a hands-on deployment and benchmarking context \u2014\
+        \ but requires AWS-provisioned GPU infrastructure, which conflicts with the CPU-only constraint of this lab."
+      workloads: []
     rejections: []
-
   infra:
     peak_environments: null
-    cost_per_run_est: ""
-    provisioning_time_est: ""
-    agnosticv_base_ci: ""
-    approved_by: ""
+    cost_per_run_est: ''
+    provisioning_time_est: ''
+    agnosticv_base_ci: ''
+    approved_by: ''
     rejections: []
