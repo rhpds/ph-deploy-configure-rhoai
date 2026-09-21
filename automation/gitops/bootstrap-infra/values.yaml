@@ -1,5 +1,46 @@
-# Auto-injected by the deployer. Do not pass these manually.
-deployer:
-  domain: apps.cluster.example.com
-  apiUrl: https://api.cluster.example.com:6443
-  guid: xxxxx
+quay:
+  enabled: true
+  namespace: quay
+  operator:
+    channel: stable-3.17
+  storage:
+    type: RHOCSStorage
+    obcName: quay
+    storageClassName: openshift-storage.noobaa.io
+    storagePath: /datastorage/registry
+  superUsers:
+    - quayadmin
+  registry:
+    name: registry
+  hpa:
+    enabled: true
+    maxReplicas: 1
+  resources:
+    quay:
+      limits:
+        cpu: "2"
+        memory: "16Gi"
+      requests:
+        cpu: "1"
+        memory: "2Gi"
+    clair:
+      limits:
+        cpu: "1"
+        memory: "2Gi"
+      requests:
+        cpu: "1"
+        memory: "1Gi"
+    clairPostgres:
+      limits:
+        cpu: "1"
+        memory: "2Gi"
+      requests:
+        cpu: "500m"
+        memory: "2Gi"
+    postgres:
+      limits:
+        cpu: "1"
+        memory: "4Gi"
+      requests:
+        cpu: "500m"
+        memory: "2Gi"

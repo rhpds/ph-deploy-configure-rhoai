@@ -1,0 +1,10 @@
+{{- if .Values.quay.enabled }}
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: {{ .Values.quay.storage.obcName }}
+  namespace: openshift-storage
+spec:
+  generateBucketName: {{ .Values.quay.storage.obcName }}
+  storageClassName: {{ .Values.quay.storage.storageClassName }}
+{{- end }}

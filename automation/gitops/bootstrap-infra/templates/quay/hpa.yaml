@@ -1,0 +1,53 @@
+{{- if and .Values.quay.enabled .Values.quay.hpa.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Values.quay.registry.name }}-clair-app
+  namespace: {{ .Values.quay.namespace }}
+spec:
+  maxReplicas: {{ .Values.quay.hpa.maxReplicas }}
+  metrics:
+    - resource:
+        name: cpu
+        target:
+          averageUtilization: 90
+          type: Utilization
+      type: Resource
+    - resource:
+        name: memory
+        target:
+          averageUtilization: 90
+          type: Utilization
+      type: Resource
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Values.quay.registry.name }}-clair-app
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Values.quay.registry.name }}-quay-app
+  namespace: {{ .Values.quay.namespace }}
+spec:
+  maxReplicas: {{ .Values.quay.hpa.maxReplicas }}
+  metrics:
+    - resource:
+        name: cpu
+        target:
+          averageUtilization: 90
+          type: Utilization
+      type: Resource
+    - resource:
+        name: memory
+        target:
+          averageUtilization: 90
+          type: Utilization
+      type: Resource
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Values.quay.registry.name }}-quay-app
+{{- end }}

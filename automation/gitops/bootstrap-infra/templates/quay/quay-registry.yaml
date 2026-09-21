@@ -1,0 +1,50 @@
+{{- if .Values.quay.enabled }}
+apiVersion: quay.redhat.com/v1
+kind: QuayRegistry
+metadata:
+  name: {{ .Values.quay.registry.name }}
+  namespace: {{ .Values.quay.namespace }}
+spec:
+  configBundleSecret: config-bundle-secret
+  components:
+    - kind: clair
+      managed: true
+      overrides:
+        volumeSize: 10Gi
+        resources:
+          {{- toYaml .Values.quay.resources.clair | nindent 10 }}
+    - kind: clairpostgres
+      managed: true
+      overrides:
+        resources:
+          {{- toYaml .Values.quay.resources.clairPostgres | nindent 10 }}
+    - kind: horizontalpodautoscaler
+      managed: false
+    - kind: mirror
+      managed: false
+    - kind: monitoring
+      managed: true
+    - kind: objectstorage
+      managed: false
+    - kind: postgres
+      managed: true
+      overrides:
+        resources:
+          {{- toYaml .Values.quay.resources.postgres | nindent 10 }}
+    - kind: redis
+      managed: true
+    - kind: route
+      managed: true
+    - kind: tls
+      managed: true
+    - kind: quay
+      managed: true
+      overrides:
+        env:
+          - name: DEBUGLOG
+            value: "false"
+          - name: USERS_DEBUG
+            value: "0"
+        resources:
+          {{- toYaml .Values.quay.resources.quay | nindent 10 }}
+{{- end }}

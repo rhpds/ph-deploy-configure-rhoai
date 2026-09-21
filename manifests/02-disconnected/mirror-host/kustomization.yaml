@@ -1,0 +1,5 @@
+---
+namespace: rhoai-deploy
+resources:
+  - pvc.yaml
+  - deployment.yaml

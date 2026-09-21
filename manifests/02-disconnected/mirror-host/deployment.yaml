@@ -1,0 +1,26 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: image-download
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: image-download
+  template:
+    metadata:
+      labels:
+        app: image-download
+    spec:
+      containers:
+        - name: image-download
+          image: quay.io/eformat/web-terminal:latest
+          command: ["/bin/bash", "-c", "sleep infinity"]
+          volumeMounts:
+            - name: data
+              mountPath: /mnt
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: disco

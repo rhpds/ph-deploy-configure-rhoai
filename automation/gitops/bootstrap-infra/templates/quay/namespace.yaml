@@ -1,0 +1,6 @@
+{{- if .Values.quay.enabled }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .Values.quay.namespace }}
+{{- end }}
