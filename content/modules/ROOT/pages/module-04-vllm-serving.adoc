@@ -19,7 +19,7 @@ By the end of this module you will be able to:
 
 == Prerequisites
 
-* The model-serving platform is configured (xref:03-model-serving-platform.adoc[Module 3] complete)
+* The model-serving platform is configured (xref:module-03-model-serving-platform.adoc[Module 3] complete)
 * A storage connection or URI for the model
 
 == Exercise 1: Deploy the CPU model
@@ -177,7 +177,7 @@ NOTE: These two settings are orthogonal. You can expose a model externally witho
 | `visibility: exposed` *and* `security.opendatahub.io/enable-auth: "true"`.
 | Callers with a valid, RBAC-authorized ServiceAccount bearer token
 
-| *Governed (MaaS)* — xref:05-maas-governance.adoc[Module 5]
+| *Governed (MaaS)* — xref:module-05-maas-governance.adoc[Module 5]
 | Republish as an `LLMInferenceService` behind the MaaS gateway.
 | Users with a self-service *API key*, subject to *rate limits*
 |===
@@ -231,7 +231,7 @@ oc get rolebinding qwen25-05b-caller-inference-get -n {project_name}
 Token auth protects the endpoint, but it is still *per-model, self-managed* security: you hand out
 ServiceAccount tokens and there is no rate limiting or usage accounting. For shared or production
 use you want *governed* access — self-service API keys, subscriptions, and token rate limits across
-many models behind one gateway. That is exactly what xref:05-maas-governance.adoc[Module 5] adds
+many models behind one gateway. That is exactly what xref:module-05-maas-governance.adoc[Module 5] adds
 with {maas}, and it is where external access should ultimately be centralised.
 ====
 
@@ -274,7 +274,7 @@ image::08-vllm-cpu-runtime-args.png[vLLM CPU Runtime Args,link=self,window=blank
 
 **Next steps:**
 
-Token auth protects the endpoint but leaves rate limits and usage accounting to you. Continue to xref:05-maas-governance.adoc[Module 5] to layer on {maas}: self-service API keys, per-subscription rate limits, and centralized telemetry across all your models.
+Token auth protects the endpoint but leaves rate limits and usage accounting to you. Continue to xref:module-05-maas-governance.adoc[Module 5] to layer on {maas}: self-service API keys, per-subscription rate limits, and centralized telemetry across all your models.
 
 == References
 

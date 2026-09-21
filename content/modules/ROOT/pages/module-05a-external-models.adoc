@@ -21,7 +21,7 @@ model workflow.
 
 == Prerequisites
 
-* xref:05-maas-governance.adoc[Module 5] complete (MaaS gateway running, at least one subscription
+* xref:module-05-maas-governance.adoc[Module 5] complete (MaaS gateway running, at least one subscription
   exists)
 * `helm` v3 installed on the bastion / workshop host
 * The workshop git repository cloned and the shell at its root

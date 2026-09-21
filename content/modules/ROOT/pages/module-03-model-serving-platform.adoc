@@ -20,8 +20,8 @@ By the end of this module you will be able to:
 
 == Prerequisites
 
-* {rhoai-short} is `Ready` (xref:01-install-connected.adoc[Module 1] or
-  xref:02-install-disconnected.adoc[Module 2] complete)
+* {rhoai-short} is `Ready` (xref:module-01-install-connected.adoc[Module 1] or
+  xref:module-02-install-disconnected.adoc[Module 2] complete)
 * No object storage required — model weights are pulled from public OCI modelcar images
 
 == Exercise 1: Create the workshop project
@@ -168,7 +168,7 @@ image::05-default-deployment-settings.png[Default Deployment Strategy,link=self,
 
 **Next steps:**
 
-Continue to xref:04-vllm-serving.adoc[Module 4] to deploy your first model and make your first inference request against a live vLLM endpoint.
+Continue to xref:module-04-vllm-serving.adoc[Module 4] to deploy your first model and make your first inference request against a live vLLM endpoint.
 
 == References
 

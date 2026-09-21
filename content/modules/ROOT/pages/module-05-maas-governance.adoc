@@ -30,7 +30,7 @@ By the end of this module you will be able to:
 
 == Prerequisites
 
-* xref:04-vllm-serving.adoc[Module 4] complete (KServe single-model serving working)
+* xref:module-04-vllm-serving.adoc[Module 4] complete (KServe single-model serving working)
 * Cluster-admin to enable {maas} in the `DataScienceCluster`; {rhcl} and cert-manager installable
 
 == Exercise 1: Provision PostgreSQL and secrets
@@ -293,7 +293,7 @@ Now that metrics will flow, let's install the serving-path and observability ope
 IMPORTANT: Install the serving-path operators *before* enabling MaaS in the `DataScienceCluster`. Enabling MaaS while Leader Worker Set or JobSet are missing causes the DSC to report a `LeaderWorkerSet not installed` warning and the `maas-controller` will not start cleanly.
 
 . Install *Leader Worker Set* and *JobSet* — the serving-path operators the `LLMInferenceService`
-  depends on. (These are also the llm-d prerequisites reused in xref:06-llmd-scaling.adoc[Module 6].):
+  depends on. (These are also the llm-d prerequisites reused in xref:module-06-llmd-scaling.adoc[Module 6].):
 +
 [source,bash,role="execute"]
 ----
@@ -926,7 +926,7 @@ read; `generation_tokens` are the output tokens it produced. `kv_cache_usage_per
 gauge (the older `gpu_cache_usage_perc` name is gone in this vLLM build); it sits near 0 on a
 lightly loaded CPU model and rises under concurrent load. Queue depth
 (`kserve_vllm:num_requests_waiting`) only builds under concurrent traffic, so it stays 0 here — you
-drive it up and scale on it in xref:06-llmd-scaling.adoc[Module 6].
+drive it up and scale on it in xref:module-06-llmd-scaling.adoc[Module 6].
 
 . View *MaaS per-subscription telemetry* — the metrics that map directly to the subscription's
   token rate limit (100 tokens / 1 minute). These come from Limitador (the {maas} rate limiter),
@@ -1101,7 +1101,7 @@ This returns `True`.
 
 **Next steps:**
 
-Continue to xref:06-llmd-scaling.adoc[Module 6] to add autoscaling: deploy `{cpu_model}` as an llm-d `LLMInferenceService` and configure a KEDA `ScaledObject` that scales on vLLM queue depth.
+Continue to xref:module-06-llmd-scaling.adoc[Module 6] to add autoscaling: deploy `{cpu_model}` as an llm-d `LLMInferenceService` and configure a KEDA `ScaledObject` that scales on vLLM queue depth.
 
 == References
 

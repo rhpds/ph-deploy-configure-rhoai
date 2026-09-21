@@ -8,7 +8,7 @@ Single-replica serving does not scale to real traffic. {rhoai} {rhoai_version} r
 inference with *llm-d*, and this module scales it automatically with the *Custom Metrics
 Autoscaler* (KEDA) — adding replicas from an inference signal (queue depth) rather than generic
 CPU/memory, and without requiring a GPU. The model is published through the *MaaS gateway* from
-xref:05-maas-governance.adoc[Module 5], so the scaling traffic is governed and its token usage
+xref:module-05-maas-governance.adoc[Module 5], so the scaling traffic is governed and its token usage
 lands in the same per-subscription telemetry — the autoscaler comes with observability for free.
 
 [NOTE]
@@ -34,17 +34,17 @@ By the end of this module you will be able to:
 
 == Prerequisites
 
-* The model-serving platform is enabled (xref:03-model-serving-platform.adoc[Module 3])
-* {maas} enabled with the gateway running (xref:05-maas-governance.adoc[Module 5]) — this module's
+* The model-serving platform is enabled (xref:module-03-model-serving-platform.adoc[Module 3])
+* {maas} enabled with the gateway running (xref:module-05-maas-governance.adoc[Module 5]) — this module's
   `LLMInferenceService` attaches to `maas-default-gateway` rather than a dedicated inference
   gateway, so its traffic is governed and metered like every other MaaS model
 * User Workload Monitoring enabled, so vLLM metrics reach Thanos
-  (xref:05-maas-governance.adoc[Module 5, Exercise 3]) — KEDA scales on those metrics
+  (xref:module-05-maas-governance.adoc[Module 5, Exercise 3]) — KEDA scales on those metrics
 
 == Exercise 1: Install the Custom Metrics Autoscaler
 
 The gateway-native serving operators this module's `LLMInferenceService` needs — *Leader Worker
-Set* and *JobSet* — were installed in xref:05-maas-governance.adoc[Module 5]. If you skipped
+Set* and *JobSet* — were installed in xref:module-05-maas-governance.adoc[Module 5]. If you skipped
 Module 5, apply them now with `oc apply -k manifests/05-maas/serving-operators` followed by
 `oc apply -f manifests/05-maas/serving-operators/operator-config.yaml` (see Module 5, Exercise 4).
 
@@ -382,7 +382,7 @@ KEDA is watching the queue. Let's give it something to watch.
 
 Load goes through the MaaS gateway, so first mint an API key bound to the high-limit subscription
 from Exercise 3, then discover the model's gateway path — the same flow as
-xref:05-maas-governance.adoc[Module 5, Exercise 6], but selecting the `qwen25-05b-llmd` model.
+xref:module-05-maas-governance.adoc[Module 5, Exercise 6], but selecting the `qwen25-05b-llmd` model.
 
 . Mint an API key and resolve the model's gateway path:
 +
@@ -464,11 +464,11 @@ kserve_vllm:kv_cache_usage_perc
 ----
 +
 These are the same user-workload metrics KEDA reads from Thanos (enabled in
-xref:05-maas-governance.adoc[Module 5, Exercise 3]); the replica count rises after
+xref:module-05-maas-governance.adoc[Module 5, Exercise 3]); the replica count rises after
 `num_requests_waiting` crosses the `ScaledObject` threshold.
 
 . Because the traffic ran through the MaaS gateway, the load also shows up in the per-subscription
-  token telemetry from xref:05-maas-governance.adoc[Module 5, Exercise 8] — no extra wiring. Run
+  token telemetry from xref:module-05-maas-governance.adoc[Module 5, Exercise 8] — no extra wiring. Run
   this against the llm-d subscription (`limited_calls` stays 0 here, since the high limit is never
   exceeded):
 +

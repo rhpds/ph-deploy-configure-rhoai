@@ -65,4 +65,4 @@ All `oc apply -k manifests/...` paths in this guide are relative to the reposito
 == Next steps
 
 You are logged in on both the console and the CLI, and the manifests are cloned. Continue to
-xref:01-install-connected.adoc[Module 1] to install {rhoai-short} on the cluster.
+xref:module-01-install-connected.adoc[Module 1] to install {rhoai-short} on the cluster.
