@@ -32,6 +32,8 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: {{ .Values.quay.registry.name }}-quay-app
   namespace: {{ .Values.quay.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   maxReplicas: {{ .Values.quay.hpa.maxReplicas }}
   metrics:
