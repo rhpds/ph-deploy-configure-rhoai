@@ -4,6 +4,8 @@ kind: QuayRegistry
 metadata:
   name: {{ .Values.quay.registry.name }}
   namespace: {{ .Values.quay.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   configBundleSecret: config-bundle-secret
   components:
