@@ -217,7 +217,7 @@ With the cluster ready, let's open the dashboard so you can see {rhoai-short} fr
 oc get route rhods-dashboard -n redhat-ods-applications -o jsonpath='https://{.spec.host}{"\n"}'
 ----
 
-. Log in with `{user}` / `{password}` and confirm the {rhoai-short} home page loads.
+. Log in with `{openshift_cluster_admin_username}` / `{openshift_cluster_admin_password}` and confirm the {rhoai-short} home page loads.
 
 === Verify
 
