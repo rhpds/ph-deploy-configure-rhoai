@@ -4,6 +4,8 @@ kind: ObjectBucketClaim
 metadata:
   name: {{ .Values.quay.storage.obcName }}
   namespace: openshift-storage
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   generateBucketName: {{ .Values.quay.storage.obcName }}
   storageClassName: {{ .Values.quay.storage.storageClassName }}
