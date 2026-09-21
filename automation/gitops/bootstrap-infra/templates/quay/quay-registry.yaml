@@ -5,7 +5,7 @@ metadata:
   name: {{ .Values.quay.registry.name }}
   namespace: {{ .Values.quay.namespace }}
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "4"
     argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
 spec:
   configBundleSecret: config-bundle-secret
