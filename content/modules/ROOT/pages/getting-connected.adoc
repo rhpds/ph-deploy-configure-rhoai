@@ -23,7 +23,7 @@ In this activity you will log into {ocp}, open a terminal, and clone the worksho
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-oc login {openshift_api_url} -u {openshift_cluster_admin_username} -p {openshift_cluster_admin_password} --insecure-skip-tls-verify=true
+oc login {openshift_api_server_url} -u {openshift_cluster_admin_username} -p {openshift_cluster_admin_password} --insecure-skip-tls-verify=true
 ----
 
 === Verify

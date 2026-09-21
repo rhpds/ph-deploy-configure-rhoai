@@ -116,7 +116,7 @@ oc-mirror --v2 --help | head -n 1
 [source,bash,role="execute",subs="attributes+"]
 ----
 # Run this OUTSIDE the pod (from the bastion terminal):
-oc login {openshift_api_url} -u {user} -p {password} --insecure-skip-tls-verify=true
+oc login {openshift_api_server_url} -u {user} -p {password} --insecure-skip-tls-verify=true
 TOKEN=$(oc whoami -t)
 echo $TOKEN
 ----
@@ -126,7 +126,7 @@ echo $TOKEN
 # Back INSIDE the pod — paste the token:
 mkdir -p $HOME/.kube
 oc login --token=<paste-token-here> \
-  --server={openshift_api_url} \
+  --server={openshift_api_server_url} \
   --insecure-skip-tls-verify=true
 ----
 
