@@ -1,0 +1,156 @@
+{{- if .Values.quay.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: quay-config-bundle-sa
+  namespace: {{ .Values.quay.namespace }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: quay-config-bundle-reader
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    resourceNames: ["{{ .Values.quay.storage.obcName }}", "openshift-service-ca.crt"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["{{ .Values.quay.storage.obcName }}"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: quay-config-bundle-reader
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+subjects:
+  - kind: ServiceAccount
+    name: quay-config-bundle-sa
+    namespace: {{ .Values.quay.namespace }}
+roleRef:
+  kind: ClusterRole
+  name: quay-config-bundle-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: quay-config-bundle-writer
+  namespace: {{ .Values.quay.namespace }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["config-bundle-secret"]
+    verbs: ["get", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: quay-config-bundle-writer
+  namespace: {{ .Values.quay.namespace }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+subjects:
+  - kind: ServiceAccount
+    name: quay-config-bundle-sa
+    namespace: {{ .Values.quay.namespace }}
+roleRef:
+  kind: Role
+  name: quay-config-bundle-writer
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: quay-config-bundle
+  namespace: {{ .Values.quay.namespace }}
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      serviceAccountName: quay-config-bundle-sa
+      restartPolicy: OnFailure
+      containers:
+        - name: configure
+          image: registry.redhat.io/openshift4/ose-cli-rhel9:latest
+          command:
+            - /bin/bash
+            - -ce
+            - |
+              OBC_NAME="{{ .Values.quay.storage.obcName }}"
+              OBC_NS="openshift-storage"
+              CA_NS="openshift-service-ca"
+              QUAY_NS="{{ .Values.quay.namespace }}"
+
+              echo "Waiting for OBC ConfigMap..."
+              until oc get cm "${OBC_NAME}" -n "${OBC_NS}" -o jsonpath='{.data.BUCKET_NAME}' 2>/dev/null | grep -q .; do
+                sleep 5
+              done
+
+              BUCKET_NAME=$(oc get cm "${OBC_NAME}" -n "${OBC_NS}" -o jsonpath='{.data.BUCKET_NAME}')
+              ACCESS_KEY=$(oc get secret "${OBC_NAME}" -n "${OBC_NS}" -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d)
+              SECRET_KEY=$(oc get secret "${OBC_NAME}" -n "${OBC_NS}" -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 -d)
+              SERVICE_CA=$(oc get cm openshift-service-ca.crt -n "${CA_NS}" -o jsonpath='{.data.service-ca\.crt}')
+
+              echo "Bucket: ${BUCKET_NAME}"
+              echo "Access key: ${ACCESS_KEY:0:8}..."
+
+              CONFIG=$(cat <<'EOFCFG'
+              BROWSER_API_CALLS_XHR_ONLY: false
+              FEATURE_PROXY_STORAGE: true
+              FEATURE_PROXY_CACHE: true
+              FEATURE_REPO_MIRROR: false
+              FEATURE_USER_INITIALIZE: true
+              FEATURE_USER_CREATION: true
+              SUPER_USERS:
+              {{- range .Values.quay.superUsers }}
+                - {{ . }}
+              {{- end }}
+              DISTRIBUTED_STORAGE_CONFIG:
+                  default:
+                      - {{ .Values.quay.storage.type }}
+                      - access_key: REPLACE_ACCESS_KEY
+                        bucket_name: REPLACE_BUCKET_NAME
+                        hostname: s3.openshift-storage.svc
+                        is_secure: true
+                        port: "443"
+                        secret_key: REPLACE_SECRET_KEY
+                        storage_path: {{ .Values.quay.storage.storagePath }}
+              DISTRIBUTED_STORAGE_DEFAULT_LOCATIONS: []
+              DISTRIBUTED_STORAGE_PREFERENCE:
+                  - default
+              EOFCFG
+              )
+
+              CONFIG=$(echo "$CONFIG" | sed \
+                -e "s|REPLACE_ACCESS_KEY|${ACCESS_KEY}|" \
+                -e "s|REPLACE_BUCKET_NAME|${BUCKET_NAME}|" \
+                -e "s|REPLACE_SECRET_KEY|${SECRET_KEY}|")
+
+              oc create secret generic config-bundle-secret -n "${QUAY_NS}" \
+                --from-literal=config.yaml="${CONFIG}" \
+                --from-literal=extra_ca_cert_s3.crt="${SERVICE_CA}" \
+                --dry-run=client -o yaml | oc apply -f -
+
+              echo "config-bundle-secret updated successfully"
+{{- end }}
