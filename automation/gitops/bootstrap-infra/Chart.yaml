@@ -1,5 +1,5 @@
 apiVersion: v2
 name: bootstrap-infra
-description: Placeholder bootstrap chart — GitOps resources to be added by Mike Hepburn
+description: Cluster-scoped shared resources for RHOAI Deploy & Configure
 type: application
 version: 0.1.0
