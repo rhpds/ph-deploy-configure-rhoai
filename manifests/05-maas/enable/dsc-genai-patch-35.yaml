@@ -7,6 +7,8 @@ spec:
   components:
     ogx:
       managementState: Managed
+    llamastackoperator:
+      managementState: Removed
     # TrustyAI is required by the Gen AI playground in RHOAI 3.5+ (RHOAIENG-85769).
     # Without it the playground returns HTTP 500 on all chat requests.
     trustyai:
