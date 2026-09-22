@@ -1,0 +1,82 @@
+---
+# HEALTHCHECK — Quick environment readiness check
+# Runs post-provisioning to verify the lab environment is functional.
+# Should complete in under 60 seconds.
+#
+# Exit 0 = healthy, non-zero = unhealthy.
+
+- name: Environment Health Check
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  module_defaults:
+    group/kubernetes.core.k8s:
+      kubeconfig: "{{ k8s_kubeconfig | default(omit) }}"
+  tasks:
+    - name: OpenShift API is reachable
+      ansible.builtin.command: oc whoami
+      changed_when: false
+
+    - name: RHOAI operator CSV is Succeeded
+      kubernetes.core.k8s_info:
+        api_version: operators.coreos.com/v1alpha1
+        kind: ClusterServiceVersion
+        namespace: redhat-ods-operator
+        label_selectors:
+          - operators.coreos.com/rhods-operator.redhat-ods-operator
+      register: csv
+      failed_when: csv.resources | length == 0 or csv.resources[0].status.phase != 'Succeeded'
+
+    - name: DataScienceCluster is Ready
+      kubernetes.core.k8s_info:
+        api_version: datasciencecluster.opendatahub.io/v1
+        kind: DataScienceCluster
+        name: default-dsc
+      register: dsc
+      failed_when: >-
+        dsc.resources | length == 0 or
+        dsc.resources[0].status.phase != 'Ready'
+
+    - name: RHOAI dashboard is reachable
+      ansible.builtin.uri:
+        url: "https://rhods-dashboard-redhat-ods-applications.{{ lookup('kubernetes.core.k8s', api_version='config.openshift.io/v1', kind='Ingress', resource_name='cluster').spec.domain }}"
+        validate_certs: false
+        status_code: 200
+      register: dashboard
+      retries: 3
+      delay: 5
+
+    - name: RHOAI namespaces exist
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Namespace
+        name: "{{ item }}"
+      register: ns
+      failed_when: ns.resources | length == 0
+      loop:
+        - redhat-ods-operator
+        - redhat-ods-applications
+        - rhods-notebooks
+
+    - name: ArgoCD bootstrap-infra Application is Synced and Healthy
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        name: bootstrap-infra
+        namespace: openshift-gitops
+      register: app
+      failed_when: >-
+        app.resources | length == 0 or
+        app.resources[0].status.sync.status != 'Synced' or
+        app.resources[0].status.health.status != 'Healthy'
+
+    - name: Quay registry has an endpoint
+      kubernetes.core.k8s_info:
+        api_version: quay.redhat.com/v1
+        kind: QuayRegistry
+        name: registry
+        namespace: quay
+      register: quay
+      failed_when: >-
+        quay.resources | length == 0 or
+        quay.resources[0].status.registryEndpoint | default('') == ''

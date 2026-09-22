@@ -1,0 +1,508 @@
+---
+# E2E — End-to-end test
+# Executes the learner's commands from Modules 1-6 on a fresh cluster.
+# Expects ALL modules (1-6) to have been completed on the target cluster.
+# Skips: Module 2 (disconnected), Module 5a (external models), optional/cleanup exercises,
+# read-only cat/ls commands, and watch (-w) commands.
+#
+# Fails on the first broken step with a message identifying which module/step failed.
+
+- name: End-to-End Test
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  module_defaults:
+    group/kubernetes.core.k8s:
+      kubeconfig: "{{ k8s_kubeconfig | default(omit) }}"
+  environment:
+    KUBECONFIG: "{{ k8s_kubeconfig | default(omit) }}"
+    K8S_AUTH_KUBECONFIG: "{{ k8s_kubeconfig | default(omit) }}"
+  vars:
+    repo_path: "{{ lookup('env', 'REPO_PATH') | default(playbook_dir ~ '/..', true) }}"
+    project_name: rhoai-deploy
+  tasks:
+
+    # ── Module 1: Install (Connected) ───────────────────────────────────────
+
+    - name: "M1 | Install RHOAI operator"
+      ansible.builtin.command:
+        cmd: oc apply -f {{ item }}
+        chdir: "{{ repo_path }}"
+      loop:
+        - manifests/01-install/operator/namespace.yaml
+        - manifests/01-install/operator/operatorgroup.yaml
+        - manifests/01-install/operator/subscription-35.yaml
+      changed_when: true
+
+    - name: "M1 | Wait for RHOAI CSV"
+      ansible.builtin.command: >-
+        oc wait csv -n redhat-ods-operator
+        -l operators.coreos.com/rhods-operator.redhat-ods-operator
+        --for=jsonpath='{.status.phase}'=Succeeded --timeout=60s
+      register: result
+      until: result.rc == 0
+      retries: 15
+      delay: 30
+
+    - name: "M1 | Apply DSCInitialization and DataScienceCluster"
+      ansible.builtin.command:
+        cmd: oc apply -k manifests/01-install/dsc
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M1 | Wait for DSC Ready"
+      ansible.builtin.command: >-
+        oc wait datasciencecluster/default-dsc --for=condition=Ready --timeout=60s
+      register: result
+      until: result.rc == 0
+      retries: 15
+      delay: 30
+
+    - name: "M1 | VERIFY — DSC phase is Ready"
+      kubernetes.core.k8s_info:
+        api_version: datasciencecluster.opendatahub.io/v1
+        kind: DataScienceCluster
+        name: default-dsc
+      register: dsc
+      failed_when: dsc.resources | length == 0 or dsc.resources[0].status.phase != 'Ready'
+
+    # ── Module 3: Model-Serving Platform ────────────────────────────────────
+
+    - name: "M3 | Create project namespace"
+      ansible.builtin.command: >-
+        oc new-project {{ project_name }}
+      register: result
+      failed_when: result.rc != 0 and 'already exists' not in result.stderr
+      changed_when: "'already exists' not in result.stderr"
+
+    - name: "M3 | Label namespace for dashboard"
+      ansible.builtin.command: >-
+        oc label namespace {{ project_name }} opendatahub.io/dashboard=true --overwrite
+      changed_when: true
+
+    - name: "M3 | Instantiate vLLM CPU ServingRuntime"
+      ansible.builtin.shell: |
+        oc process -n redhat-ods-applications vllm-cpu-x86-runtime-template \
+          | oc apply -n {{ project_name }} -f -
+      changed_when: true
+
+    - name: "M3 | Annotate ServingRuntime"
+      ansible.builtin.command: >-
+        oc annotate servingruntime vllm-cpu-x86-runtime -n {{ project_name }}
+        opendatahub.io/template-name=vllm-cpu-x86-runtime-template
+        --overwrite
+      changed_when: true
+
+    - name: "M3 | VERIFY — ServingRuntime exists"
+      ansible.builtin.command: >-
+        oc get servingruntime vllm-cpu-x86-runtime -n {{ project_name }}
+      changed_when: false
+
+    # ── Module 4: Serving with vLLM ─────────────────────────────────────────
+
+    - name: "M4 | Apply InferenceService"
+      ansible.builtin.command:
+        cmd: oc apply -k manifests/04-vllm/qwen25-05b -n {{ project_name }}
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M4 | Wait for InferenceService Ready"
+      ansible.builtin.command: >-
+        oc wait inferenceservice/qwen25-05b -n {{ project_name }}
+        --for=condition=Ready --timeout=60s
+      register: result
+      until: result.rc == 0
+      retries: 15
+      delay: 30
+
+    - name: "M4 | Get inference URL"
+      ansible.builtin.command: >-
+        oc get inferenceservice qwen25-05b -n {{ project_name }}
+        -o jsonpath='{.status.url}'
+      register: isvc_url
+      changed_when: false
+
+    - name: "M4 | Create caller token"
+      ansible.builtin.command: >-
+        oc create token qwen25-05b-caller -n {{ project_name }} --duration=1h
+      register: caller_token
+      changed_when: false
+
+    - name: "M4 | VERIFY — inference returns 200"
+      ansible.builtin.uri:
+        url: "{{ isvc_url.stdout }}/v1/models"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ caller_token.stdout }}"
+        validate_certs: false
+        status_code: 200
+      retries: 5
+      delay: 10
+
+    # ── Module 5: MaaS Governance ───────────────────────────────────────────
+
+    - name: "M5-Ex1 | Create PostgreSQL secrets"
+      ansible.builtin.shell: |
+        POSTGRES_PASSWORD=$(openssl rand -base64 16 | tr -d '=+/')
+        oc create secret generic postgres-creds -n redhat-ods-applications \
+          --from-literal=POSTGRESQL_USER=maas \
+          --from-literal=POSTGRESQL_PASSWORD="${POSTGRES_PASSWORD}" \
+          --from-literal=POSTGRESQL_DATABASE=maas \
+          --dry-run=client -o yaml | oc apply -f -
+        oc create secret generic maas-db-config -n redhat-ods-applications \
+          --from-literal=DB_CONNECTION_URL="postgresql://maas:${POSTGRES_PASSWORD}@postgres:5432/maas?sslmode=disable" \
+          --dry-run=client -o yaml | oc apply -f -
+      changed_when: true
+
+    - name: "M5-Ex1 | Deploy PostgreSQL"
+      ansible.builtin.command:
+        cmd: oc apply -k manifests/05-maas/postgres -n redhat-ods-applications
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M5-Ex1 | Wait for PostgreSQL"
+      ansible.builtin.command: >-
+        oc rollout status deploy/postgres -n redhat-ods-applications --timeout=120s
+      changed_when: false
+
+    - name: "M5-Ex2 | Install Connectivity Link operators"
+      ansible.builtin.command:
+        cmd: oc apply -k manifests/05-maas/connectivity-link
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M5-Ex2 | Wait for RHCL CSV"
+      ansible.builtin.shell: |
+        oc wait --for=jsonpath='{.status.state}'=AtLatestKnown \
+          subscription/rhcl-operator -n openshift-operators --timeout=60s
+        CSV=$(oc get subscription rhcl-operator -n openshift-operators -o jsonpath='{.status.currentCSV}')
+        oc wait --for=jsonpath='{.status.phase}'=Succeeded csv/${CSV} -n openshift-operators --timeout=60s
+      register: result
+      until: result.rc == 0
+      retries: 10
+      delay: 30
+
+    - name: "M5-Ex2 | Wait for cert-manager CSV"
+      ansible.builtin.shell: |
+        oc wait --for=jsonpath='{.status.state}'=AtLatestKnown \
+          subscription/openshift-cert-manager-operator -n cert-manager-operator --timeout=60s
+        CSV=$(oc get subscription openshift-cert-manager-operator -n cert-manager-operator -o jsonpath='{.status.currentCSV}')
+        oc wait --for=jsonpath='{.status.phase}'=Succeeded csv/${CSV} -n cert-manager-operator --timeout=60s
+      register: result
+      until: result.rc == 0
+      retries: 10
+      delay: 30
+
+    - name: "M5-Ex2 | Register Kuadrant"
+      ansible.builtin.command:
+        cmd: "{{ item }}"
+        chdir: "{{ repo_path }}"
+      loop:
+        - oc apply -f manifests/05-maas/connectivity-link/kuadrant.yaml
+      changed_when: true
+
+    - name: "M5-Ex2 | Wait for Kuadrant Ready"
+      ansible.builtin.command: >-
+        oc wait --for=condition=Ready kuadrant/kuadrant -n kuadrant-system --timeout=60s
+      register: result
+      until: result.rc == 0
+      retries: 10
+      delay: 15
+
+    - name: "M5-Ex2 | Authorino service-CA trust"
+      ansible.builtin.shell:
+        cmd: |
+          oc apply -f manifests/05-maas/connectivity-link/authorino-service-ca-trust.yaml
+          oc wait --for=jsonpath='{.data.service-ca\.crt}' configmap/authorino-service-ca \
+            -n kuadrant-system --timeout=2m
+          oc patch authorino authorino -n kuadrant-system --type=merge \
+            -p '{"spec":{"volumes":{"items":[{"name":"ca-trust","mountPath":"/etc/pki/tls/certs","configMaps":["authorino-trusted-ca-bundle","authorino-service-ca"]}]}}}'
+          oc rollout status deploy/authorino -n kuadrant-system --timeout=5m
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M5-Ex2 | Bootstrap MaaS gateway (ClusterIP + Route)"
+      ansible.builtin.shell: |
+        export CLUSTER_DOMAIN=$(oc get ingress.config cluster -o jsonpath='{.spec.domain}')
+        oc kustomize manifests/05-maas/gateway/clusterip | envsubst '${CLUSTER_DOMAIN}' | oc apply -f -
+        SVC=$(oc get svc -n openshift-ingress -l gateway.networking.k8s.io/gateway-name=maas-default-gateway \
+          -o jsonpath='{.items[0].metadata.name}')
+        oc patch svc "${SVC}" -n openshift-ingress --subresource=status --type=merge \
+          -p "{\"status\":{\"loadBalancer\":{\"ingress\":[{\"hostname\":\"maas.${CLUSTER_DOMAIN}\"}]}}}"
+        oc wait --for=condition=Programmed gateway/maas-default-gateway \
+          -n openshift-ingress --timeout=5m
+        oc rollout restart deploy/maas-ui -n redhat-ods-applications
+        oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=60s
+      args:
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M5-Ex3 | Enable User Workload Monitoring"
+      ansible.builtin.command:
+        cmd: oc apply -k manifests/05-maas/uwm
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M5-Ex3 | Wait for UWM stack"
+      ansible.builtin.shell: |
+        until oc get statefulset prometheus-user-workload -n openshift-user-workload-monitoring >/dev/null 2>&1; do
+          sleep 5
+        done
+        oc rollout status statefulset/prometheus-user-workload -n openshift-user-workload-monitoring --timeout=5m
+      register: result
+      until: result.rc == 0
+      retries: 5
+      delay: 15
+
+    - name: "M5-Ex3 | Install serving operators"
+      ansible.builtin.command:
+        cmd: oc apply -k manifests/05-maas/serving-operators
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M5-Ex3 | Wait for LWS CSV"
+      ansible.builtin.shell: |
+        oc wait --for=jsonpath='{.status.state}'=AtLatestKnown \
+          subscription/leader-worker-set -n openshift-lws-operator --timeout=60s
+        CSV=$(oc get subscription leader-worker-set -n openshift-lws-operator -o jsonpath='{.status.currentCSV}')
+        oc wait --for=jsonpath='{.status.phase}'=Succeeded csv/${CSV} -n openshift-lws-operator --timeout=60s
+      register: result
+      until: result.rc == 0
+      retries: 10
+      delay: 30
+
+    - name: "M5-Ex3 | Wait for JobSet CSV"
+      ansible.builtin.shell: |
+        oc wait --for=jsonpath='{.status.state}'=AtLatestKnown \
+          subscription/job-set -n openshift-jobset-operator --timeout=60s
+        CSV=$(oc get subscription job-set -n openshift-jobset-operator -o jsonpath='{.status.currentCSV}')
+        oc wait --for=jsonpath='{.status.phase}'=Succeeded csv/${CSV} -n openshift-jobset-operator --timeout=60s
+      register: result
+      until: result.rc == 0
+      retries: 10
+      delay: 30
+
+    - name: "M5-Ex3 | Apply operator config"
+      ansible.builtin.command:
+        cmd: oc apply -f manifests/05-maas/serving-operators/operator-config.yaml
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M5-Ex3 | Install observability operators"
+      ansible.builtin.command:
+        cmd: oc apply -k manifests/05-maas/observability-operators
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M5-Ex3 | Wait for COO + OTel CSVs"
+      ansible.builtin.shell: |
+        oc wait --for=jsonpath='{.status.state}'=AtLatestKnown \
+          subscription/cluster-observability-operator -n openshift-cluster-observability-operator --timeout=60s
+        CSV=$(oc get subscription cluster-observability-operator -n openshift-cluster-observability-operator -o jsonpath='{.status.currentCSV}')
+        oc wait --for=jsonpath='{.status.phase}'=Succeeded csv/${CSV} -n openshift-cluster-observability-operator --timeout=60s
+        oc wait --for=jsonpath='{.status.state}'=AtLatestKnown \
+          subscription/opentelemetry-product -n openshift-opentelemetry-operator --timeout=60s
+        CSV=$(oc get subscription opentelemetry-product -n openshift-opentelemetry-operator -o jsonpath='{.status.currentCSV}')
+        oc wait --for=jsonpath='{.status.phase}'=Succeeded csv/${CSV} -n openshift-opentelemetry-operator --timeout=60s
+      register: result
+      until: result.rc == 0
+      retries: 10
+      delay: 30
+
+    - name: "M5-Ex3 | Wait for MonitoringStack ConfigMap"
+      ansible.builtin.shell: |
+        until oc get configmap prometheus-web-tls-ca -n redhat-ods-monitoring >/dev/null 2>&1; do
+          sleep 10
+        done
+      register: result
+      until: result.rc == 0
+      retries: 10
+      delay: 15
+
+    - name: "M5-Ex3 | Fix observability datasource and MonitoringStack"
+      ansible.builtin.shell: |
+        oc apply -k manifests/05-maas/observability-datasource
+        oc create secret generic prometheus-web-tls-ca -n redhat-ods-monitoring \
+          --from-literal=service-ca.crt="$(oc get cm prometheus-web-tls-ca -n redhat-ods-monitoring -o jsonpath='{.data.service-ca\.crt}')" \
+          --dry-run=client -o yaml | oc apply -f -
+        oc delete pod -l app.kubernetes.io/name=prometheus -n redhat-ods-monitoring --ignore-not-found
+        oc wait --for=condition=Available monitoringstack/data-science-monitoringstack \
+          -n redhat-ods-monitoring --timeout=10m
+      args:
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M5-Ex4 | Enable MaaS in DSC"
+      ansible.builtin.shell: |
+        oc patch datasciencecluster default-dsc --type merge \
+          --patch-file manifests/05-maas/enable/dsc-maas-patch-35.yaml
+        oc patch datasciencecluster default-dsc --type merge \
+          --patch-file manifests/05-maas/enable/dsc-genai-patch-35.yaml
+        oc patch odhdashboardconfig odh-dashboard-config -n redhat-ods-applications --type merge \
+          --patch-file manifests/05-maas/enable/dashboard-maas-patch.yaml
+        oc patch odhdashboardconfig odh-dashboard-config -n redhat-ods-applications --type merge \
+          --patch-file manifests/05-maas/enable/dashboard-genai-patch.yaml
+      args:
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M5-Ex4 | Restart dashboard and maas-ui"
+      ansible.builtin.shell: |
+        oc rollout restart deploy/rhods-dashboard -n redhat-ods-applications
+        oc rollout status deploy/rhods-dashboard -n redhat-ods-applications --timeout=3m
+        oc rollout restart deploy/maas-ui -n redhat-ods-applications
+        oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=2m
+      changed_when: true
+
+    - name: "M5-Ex5 | Deploy model as LLMInferenceService"
+      ansible.builtin.shell: |
+        oc apply -k manifests/05-maas/model -n {{ project_name }}
+        oc wait --for=condition=Ready llminferenceservice/qwen25-05b-maas \
+          -n {{ project_name }} --timeout=60s
+      args:
+        chdir: "{{ repo_path }}"
+      register: result
+      until: result.rc == 0
+      retries: 15
+      delay: 30
+
+    - name: "M5-Ex5 | Apply subscription and governance CRs"
+      ansible.builtin.command:
+        cmd: "{{ item }}"
+        chdir: "{{ repo_path }}"
+      loop:
+        - oc apply -k manifests/05-maas/subscription
+        - oc apply -k manifests/05-maas/telemetry
+      register: result
+      until: result.rc == 0
+      retries: 3
+      delay: 15
+      changed_when: true
+
+    - name: "M5-Ex6 | VERIFY — MaaSModelRef is Ready"
+      kubernetes.core.k8s_info:
+        api_version: maas.opendatahub.io/v1alpha1
+        kind: MaaSModelRef
+        name: qwen25-05b-maas
+        namespace: "{{ project_name }}"
+      register: mmr
+      until: mmr.resources | length > 0 and mmr.resources[0].status.phase | default('') == 'Ready'
+      retries: 20
+      delay: 15
+
+    - name: "M5-Ex6 | Mint API key and test inference"
+      ansible.builtin.shell: |
+        export CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
+        export HOST="https://maas.${CLUSTER_DOMAIN}"
+        export API_KEY=$(curl -sSk -X POST "${HOST}/maas-api/v1/api-keys" \
+          -H "Authorization: Bearer $(oc whoami -t)" \
+          -H "Content-Type: application/json" \
+          -d '{"name":"e2e-key","expiresIn":"1h","subscription":"qwen25-05b-demo"}' | jq -r .key)
+        # Wait for model to appear in catalog
+        for attempt in $(seq 1 20); do
+          MODEL_JSON=$(curl -sSk "${HOST}/maas-api/v1/models" -H "Authorization: Bearer ${API_KEY}")
+          echo "$MODEL_JSON" | jq -e '[.data[]? | select(.ready==true)][0]' >/dev/null 2>&1 && break
+          sleep 5
+        done
+        MODEL_ID=$(echo "$MODEL_JSON" | jq -re '[.data[] | select(.ready==true)][0].id')
+        # Test body-based routing
+        RESPONSE=$(curl -sSk "${HOST}/v1/chat/completions" \
+          -H "Authorization: Bearer ${API_KEY}" \
+          -H "Content-Type: application/json" \
+          -d "{\"model\":\"${MODEL_ID}\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}],\"max_tokens\":50}")
+        echo "$RESPONSE" | jq -e '.choices[0].message.content' || exit 1
+      changed_when: false
+
+    - name: "M5 | VERIFY — Gateway is Programmed"
+      kubernetes.core.k8s_info:
+        api_version: gateway.networking.k8s.io/v1
+        kind: Gateway
+        name: maas-default-gateway
+        namespace: openshift-ingress
+      register: gw
+      failed_when: >-
+        gw.resources | length == 0 or
+        not (gw.resources[0].status.conditions | default([]) | selectattr('type', 'eq', 'Programmed') | selectattr('status', 'eq', 'True') | list | length > 0)
+
+    # ── Module 6: Scaling llm-d ─────────────────────────────────────────────
+
+    - name: "M6-Ex1 | Install KEDA operator"
+      ansible.builtin.command:
+        cmd: oc apply -k manifests/06-llmd/operators
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M6-Ex1 | Wait for KEDA CSV"
+      ansible.builtin.shell: >-
+        oc wait --for=jsonpath='{.status.phase}'=Succeeded
+        csv -l operators.coreos.com/openshift-custom-metrics-autoscaler-operator.openshift-keda=
+        -n openshift-keda --timeout=60s
+      register: result
+      until: result.rc == 0
+      retries: 10
+      delay: 30
+
+    - name: "M6-Ex1 | Deploy KedaController"
+      ansible.builtin.shell: |
+        oc apply -f manifests/06-llmd/operators/kedacontroller.yaml
+        oc rollout status deploy/keda-operator -n openshift-keda --timeout=5m
+      args:
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M6-Ex2 | Deploy llm-d LLMInferenceService"
+      ansible.builtin.command:
+        cmd: oc apply -k manifests/06-llmd/service -n {{ project_name }}
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M6-Ex2 | Wait for llm-d LLMInferenceService Ready"
+      ansible.builtin.command: >-
+        oc wait --for=condition=Ready llminferenceservice/qwen25-05b-llmd
+        -n {{ project_name }} --timeout=60s
+      register: result
+      until: result.rc == 0
+      retries: 15
+      delay: 30
+
+    - name: "M6-Ex3 | Apply MaaS subscription for llm-d"
+      ansible.builtin.command:
+        cmd: oc apply -k manifests/06-llmd/maas-subscription
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M6-Ex4 | Apply KEDA ScaledObject"
+      ansible.builtin.command:
+        cmd: oc apply -k manifests/06-llmd/autoscaling-keda
+        chdir: "{{ repo_path }}"
+      changed_when: true
+
+    - name: "M6 | VERIFY — ScaledObject is Ready"
+      kubernetes.core.k8s_info:
+        api_version: keda.sh/v1alpha1
+        kind: ScaledObject
+        name: qwen25-05b-llmd-keda
+        namespace: "{{ project_name }}"
+      register: so
+      until: >-
+        so.resources | length > 0 and
+        (so.resources[0].status.conditions | default([]) | selectattr('type', 'eq', 'Ready') | selectattr('status', 'eq', 'True') | list | length > 0)
+      retries: 10
+      delay: 15
+
+    - name: "M6 | VERIFY — LLMInferenceService qwen25-05b-llmd is Ready"
+      kubernetes.core.k8s_info:
+        api_version: serving.kserve.io/v1alpha2
+        kind: LLMInferenceService
+        name: qwen25-05b-llmd
+        namespace: "{{ project_name }}"
+      register: llis
+      failed_when: >-
+        llis.resources | length == 0 or
+        not (llis.resources[0].status.conditions | default([]) | selectattr('type', 'eq', 'Ready') | selectattr('status', 'eq', 'True') | list | length > 0)
+
+    # ── Final ───────────────────────────────────────────────────────────────
+
+    - name: "E2E complete"
+      ansible.builtin.debug:
+        msg: "All modules (1, 3-6) executed and verified successfully."
