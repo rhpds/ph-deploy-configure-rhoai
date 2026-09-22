@@ -93,8 +93,8 @@ oc apply -k manifests/02-disconnected/mirror-host
 +
 [source,bash,role="execute"]
 ----
-oc rollout status deploy/image-download --timeout=120s
-oc rsh deploy/image-download
+oc rollout status deploy/image-download -n rhoai-deploy --timeout=120s
+oc rsh -n rhoai-deploy deploy/image-download
 ----
 
 . Set the working directory and install oc-mirror v2:
@@ -304,10 +304,10 @@ QUAY_HOST="registry-quay-quay.${CLUSTER_DOMAIN}"
 +
 [source,bash,role="execute"]
 ----
-oc patch deploy image-download -n {project_name} --type=json \
+oc patch deploy image-download -n rhoai-deploy --type=json \
   -p "[{\"op\":\"add\",\"path\":\"/spec/template/spec/hostAliases\",\"value\":[{\"ip\":\"${ROUTER_IP}\",\"hostnames\":[\"${QUAY_HOST}\"]}]}]"
 
-oc rollout status deploy/image-download --timeout=120s
+oc rollout status deploy/image-download -n rhoai-deploy --timeout=120s
 ----
 +
 NOTE: This step is specific to this lab environment where the pod network cannot route to the
@@ -318,7 +318,7 @@ resolve the registry hostname normally.
 +
 [source,bash,role="execute"]
 ----
-oc rsh deploy/image-download
+oc rsh -n rhoai-deploy deploy/image-download
 ----
 
 . Verify DNS resolution and log in to Quay:
