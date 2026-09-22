@@ -214,11 +214,11 @@ minutes total). Expected output:
 +
 [source]
 ----
-196 / 196 (44m53s) [============================] 100 %
+196 / 196 (31m53s) [============================] 100 %
 ✓  193 / 193 operator images mirrored successfully
 ✓  3 / 3 additional images mirrored successfully
 📦 Preparing the tarball archive...
-mirror time     : 54m22s
+mirror time     : 39m27s
 👋 Goodbye, thank you for using oc-mirror
 ----
 
@@ -237,6 +237,8 @@ build but can be cleaned up after the tar is confirmed:
 ----
 rm -rf /mnt/.oc-mirror
 ----
+
+. Exit out of the `image-download` pod.
 
 === Verify
 
@@ -281,7 +283,10 @@ Save the `access_token` from the response — you need it for the next step.
 [source,bash,role="execute"]
 ----
 TOKEN="<access_token from previous step>"
-
+----
++
+[source,bash,role="execute"]
+----
 curl -sSk -X POST "${QUAY_URL}/api/v1/organization/" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
@@ -307,6 +312,7 @@ Push the disk archive into the Quay mirror registry using oc-mirror's diskToMirr
 ROUTER_IP=$(oc get svc router-internal-default -n openshift-ingress -o jsonpath='{.spec.clusterIP}')
 CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
 QUAY_HOST="registry-quay-quay.${CLUSTER_DOMAIN}"
+echo $QUAY_HOST
 ----
 +
 [source,bash,role="execute"]
@@ -321,14 +327,14 @@ NOTE: This step is specific to this lab environment where the pod network cannot
 cluster's external ingress VIP. In a production disconnected environment the mirror host would
 resolve the registry hostname normally.
 
-. Open a shell in the new pod:
+. Open a shell in the pod again:
 +
 [source,bash,role="execute"]
 ----
 oc rsh -n rhoai-deploy deploy/image-download
 ----
 
-. Verify DNS resolution and log in to Quay:
+. Verify DNS resolution and log in to Quay. The `QUAY_HOST` variable was set in the previous step.
 +
 [source,bash,role="execute"]
 ----
@@ -377,10 +383,16 @@ endif::[]
 This is a long upload — expect it to take ~60+ minutes depending on storage and network
 throughput.
 +
-At this point you can leave the pod running and continue with the next Module - the remaining steps are reference only in this lab as our cluster is already installed with RHOAI via the connected path.
+image::35-quay-load.png[Quay Loading,link=self,window=blank,width=800]
++
+You can log into the Quay UI using the Quay admin user and password and see the repositories being populated.
 +
 image::34-quay-repos.png[Quay Repositories,link=self,window=blank,width=800]
 * The Quay UI shows repositories under the `mirror` organization
+
+. At this point you can leave the pod running or stop it now - and continue with the next Module. The remaining 
+steps are for reference only in this lab as our cluster is already installed with RHOAI via the connected path. Feel
+free to inspect the manifests and resources created by oc-mirror.
 
 === Verify
 
