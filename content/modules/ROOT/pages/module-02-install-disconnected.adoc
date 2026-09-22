@@ -110,6 +110,11 @@ oc rsh -n rhoai-deploy deploy/image-download
 [source,bash,role="execute"]
 ----
 export HOME=/mnt && cd /mnt
+export PATH=$HOME/.local/bin/:$PATH
+----
++
+[source,bash,role="execute"]
+----
 mkdir -p $HOME/.local/bin
 curl -L -O https://mirror.openshift.com/pub/cgw/oc-mirror/latest/oc-mirror-rhel9-linux-amd64.tar.gz
 tar xzvf oc-mirror-rhel9-linux-amd64.tar.gz
@@ -118,7 +123,6 @@ mv oc-mirror $HOME/.local/bin/
 +
 [source,bash,role="execute"]
 ----
-export PATH=$HOME/.local/bin/:$PATH
 oc-mirror --v2 --help | head -n 1
 ----
 
