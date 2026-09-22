@@ -1,7 +1,7 @@
 ---
 site:
   title: "RHOAI Deploy & Configure Workshop"
-  url: https://eformat.github.io/zt-rhoai-deploy-configure-showroom
+  url: https://rhpds.github.io/ph-deploy-configure-rhoai
   start_page: modules::index.adoc
 
 content:
