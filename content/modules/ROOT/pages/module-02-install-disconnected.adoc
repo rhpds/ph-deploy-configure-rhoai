@@ -89,7 +89,7 @@ oc get clusterversion version -o jsonpath='{.status.desired.version}{"\n"}'
 oc apply -k manifests/02-disconnected/mirror-host
 ----
 
-Because the pod cannot reach the OAuth server directly, use a token obtained from outside the `image-download` pod:
+. Because the pod cannot reach the OAuth server directly, use a token obtained from outside the `image-download` pod:
 +
 [source,bash,role="execute",subs="attributes+"]
 ----
