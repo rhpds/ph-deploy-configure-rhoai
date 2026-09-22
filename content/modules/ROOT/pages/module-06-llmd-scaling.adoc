@@ -104,6 +104,13 @@ Module 5 telemetry.
 
 Review the key fields of the `LLMInferenceService` before applying:
 
+Inspect the manifest:
+
+[source,bash,role="execute"]
+----
+cat manifests/06-llmd/service/llminferenceservice.yaml
+----
+
 [source,yaml]
 ----
 apiVersion: serving.kserve.io/v1alpha1
@@ -213,6 +220,13 @@ grant it a budget so the load test in Exercise 5 can build queue depth freely.
 . Apply the MaaS governance CRs for the llm-d model. The pattern mirrors Module 5 Exercise 5
   but with a deliberately high token limit:
 +
+Review the manifests:
++
+[source,bash,role="execute"]
+----
+ls manifests/06-llmd/maas-subscription/
+----
++
 [source,yaml]
 ----
 apiVersion: maas.opendatahub.io/v1alpha1
@@ -293,6 +307,13 @@ Grant KEDA read access to user-workload monitoring, then create a `ScaledObject`
 vLLM Deployment on queue depth (`vllm:num_requests_waiting`) pulled from Thanos.
 
 Review the `ScaledObject` — this is what tells KEDA *when* and *how far* to scale:
+
+Inspect the manifest:
+
+[source,bash,role="execute"]
+----
+cat manifests/06-llmd/autoscaling-keda/scaledobject.yaml
+----
 
 [source,yaml]
 ----

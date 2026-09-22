@@ -66,6 +66,13 @@ active.
 
 The DSCI is applied once and rarely changes:
 
+Inspect the manifest:
+
+[source,bash,role="execute"]
+----
+cat manifests/01-install/dsc/dscinitialization.yaml
+----
+
 [source,yaml]
 ----
 apiVersion: dscinitialization.opendatahub.io/v1
@@ -95,6 +102,13 @@ spec:
 ifeval::["{rhoai_version}" == "3.5"]
 The DSC controls every {rhoai-short} subsystem via `managementState: Managed | Removed`. Review
 the key sections before applying:
+
+Inspect the manifest:
+
+[source,bash,role="execute"]
+----
+cat manifests/01-install/dsc/datasciencecluster.yaml
+----
 
 [source,yaml]
 ----
@@ -138,6 +152,13 @@ endif::[]
 ifeval::["{rhoai_version}" == "3.4"]
 The DSC controls every {rhoai-short} subsystem via `managementState: Managed | Removed`. Review
 the key sections before applying:
+
+Inspect the manifest:
+
+[source,bash,role="execute"]
+----
+cat manifests/01-install/dsc/datasciencecluster-34.yaml
+----
 
 [source,yaml]
 ----

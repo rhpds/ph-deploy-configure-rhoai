@@ -77,6 +77,13 @@ below waits for its prerequisite before moving on.
 . Install the {rhcl} and cert-manager operators (subscriptions only). The RHCL subscription
   includes a timeout tuning for Authorino's ext_authz service:
 +
+Inspect the manifest:
++
+[source,bash,role="execute"]
+----
+cat manifests/05-maas/connectivity-link/connectivity-link-subscription.yaml
+----
++
 [source,yaml]
 ----
 apiVersion: operators.coreos.com/v1alpha1
@@ -124,6 +131,13 @@ image::10-rhcl-operator.png[RHCL Operator,link=self,window=blank,width=800]
 
 . Register Kuadrant now that its CRD exists. The `Kuadrant` CR bootstraps Authorino
   (authentication) and Limitador (rate limiting) in the `kuadrant-system` namespace:
++
+Inspect the manifest:
++
+[source,bash,role="execute"]
+----
+cat manifests/05-maas/connectivity-link/kuadrant.yaml
+----
 +
 [source,yaml]
 ----
@@ -411,6 +425,13 @@ With the observability stack healthy, let's enable MaaS in the platform and surf
   MaaS subsystem that was intentionally left `Removed` at install time:
 +
 ifeval::["{rhoai_version}" == "3.4"]
+Inspect the manifest:
++
+[source,bash,role="execute"]
+----
+cat manifests/05-maas/enable/dsc-maas-patch.yaml
+----
++
 [source,yaml]
 ----
 # dsc-maas-patch.yaml (3.4)
@@ -437,6 +458,13 @@ This sets `spec.components.kserve.modelsAsService.managementState: Managed` in t
 feature flags in `OdhDashboardConfig`.
 endif::[]
 ifeval::["{rhoai_version}" == "3.5"]
+Inspect the manifest:
++
+[source,bash,role="execute"]
+----
+cat manifests/05-maas/enable/dsc-maas-patch-35.yaml
+----
++
 [source,yaml]
 ----
 # dsc-maas-patch-35.yaml (3.5)
@@ -584,6 +612,13 @@ limit.
 . Apply the governance CRs. Three resources work together to publish the model through the
   gateway with authentication and rate limiting:
 +
+Review the manifests:
++
+[source,bash,role="execute"]
+----
+ls manifests/05-maas/subscription/
+----
++
 [source,yaml]
 ----
 apiVersion: maas.opendatahub.io/v1alpha1
@@ -664,6 +699,13 @@ image::14-maas-subscription-maas-model.png[MaaS Subscription and MaaS Model,link
 . Wire up per-subscription telemetry so gateway token usage is broken out by subscription. Both
   CRs target `maas-default-gateway` and build on the `MaaSAuthPolicy` you just created, so they are
   applied after governance. You *view* these metrics in Exercise 8, after generating traffic:
++
+Review the manifests:
++
+[source,bash,role="execute"]
+----
+ls manifests/05-maas/telemetry/
+----
 +
 [source,yaml]
 ----

@@ -565,6 +565,13 @@ oc label secret sim-openai-key -n llm-katan \
 . Apply the `ExternalModel` and MaaS governance CRs. In 3.4 the `ExternalModel` carries all
   provider config in a single CR:
 +
+Inspect the manifest:
++
+[source,bash,role="execute"]
+----
+cat manifests/05-maas/external-model-34/external-model.yaml
+----
++
 [source,yaml]
 ----
 apiVersion: maas.opendatahub.io/v1alpha1

@@ -37,6 +37,13 @@ only and disables the scheduler for single-node serving. It also exposes the mod
 
 You will see all of these in Exercise 3. Review the key fields before applying:
 
+Inspect the manifest:
+
+[source,bash,role="execute"]
+----
+cat manifests/04-vllm/qwen25-05b/inferenceservice.yaml
+----
+
 [source,yaml]
 ----
 apiVersion: serving.kserve.io/v1beta1
