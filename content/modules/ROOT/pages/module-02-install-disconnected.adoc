@@ -420,6 +420,13 @@ reference copies are provided under `manifests/02-disconnected/catalog/`.
 The **`CatalogSource`** tells OLM where to find the operator index image — your mirror registry
 instead of `registry.redhat.io`:
 
+Inspect the reference manifest:
+
+[source,bash,role="execute"]
+----
+cat manifests/02-disconnected/catalog/catalogsource.yaml
+----
+
 [source,yaml]
 ----
 apiVersion: operators.coreos.com/v1alpha1
@@ -444,6 +451,13 @@ spec:
 
 The **`ImageDigestMirrorSet`** (IDMS) redirects image pulls cluster-wide — any pod requesting
 an image from `registry.redhat.io` or `quay.io` transparently pulls from your mirror instead:
+
+Inspect the reference manifest:
+
+[source,bash,role="execute"]
+----
+cat manifests/02-disconnected/catalog/idms.yaml
+----
 
 [source,yaml]
 ----

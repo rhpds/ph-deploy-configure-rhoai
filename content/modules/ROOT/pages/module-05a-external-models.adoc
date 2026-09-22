@@ -133,6 +133,13 @@ Every `ExternalModel` references a credential `Secret`. The secret must carry th
 API key into upstream requests. Because llm-katan is an echo simulator it does not validate API
 keys — a dummy value is sufficient:
 
+Inspect the chart template:
+
+[source,bash,role="execute"]
+----
+cat manifests/05-maas/llm-katan-simulator/templates/secrets.yaml
+----
+
 [source,yaml]
 ----
 apiVersion: v1
@@ -154,6 +161,13 @@ stringData:
 
 The chart renders two kinds of external model. Four providers use the **high-level** maas
 `ExternalModel` — here is `sim-openai` as an example:
+
+Inspect the chart template:
+
+[source,bash,role="execute"]
+----
+cat manifests/05-maas/llm-katan-simulator/templates/external-models.yaml
+----
 
 [source,yaml]
 ----
@@ -184,6 +198,13 @@ spec:
 Each `ExternalModel` is published through a **`MaaSModelRef`** — the same pattern as locally-served
 models in Module 5:
 
+Inspect the chart template:
+
+[source,bash,role="execute"]
+----
+cat manifests/05-maas/llm-katan-simulator/templates/maasmodelrefs.yaml
+----
+
 [source,yaml]
 ----
 apiVersion: maas.opendatahub.io/v1alpha1
@@ -201,7 +222,9 @@ spec:
     variant. Governance (subscription, auth policy, rate limits) works identically for both.
 
 Vertex AI uses the **low-level** `inference.opendatahub.io` ExternalProvider + ExternalModel
-directly (see the NOTE in the resource model section above for why):
+directly (see the NOTE in the resource model section above for why). The same chart template
+handles both high-level and low-level forms — providers with a `config:` block in `values.yaml`
+emit the low-level pair:
 
 [source,yaml]
 ----
