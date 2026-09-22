@@ -261,6 +261,50 @@ oc get ns redhat-ods-operator redhat-ods-applications rhods-notebooks
 
 * All three namespaces exist and are `Active`.
 
+== Exercise 5 (Optional): Code Server workbench
+
+For an IDE view of the workshop manifests, deploy a Code Server workbench in {rhoai-short}.
+You can also clone the repo locally — this step is purely for convenience.
+
+. In the {rhoai-short} dashboard, navigate to *Data Science Projects* and select (or create) the
+  `{project_name}` project.
+
+. Click *Create workbench* and fill in:
++
+[cols="1,2",options="header"]
+|===
+|Field |Value
+
+|Name
+|`code-server`
+
+|Image selection
+|Code Server
+
+|Container size
+|Small
+
+|Accelerator
+|None
+|===
++
+image::36-code-server-workbench.png[Create Code Server workbench,link=self,window=blank,width=700]
+
+. Click **Create workbench** and wait for the workbench to reach `Running` status. Click the
+  workbench link to open Code Server in a new tab.
+
+. Use the git clone button to clone the workshop repo:
++
+[source,text]
+----
+https://github.com/rhpds/ph-deploy-configure-rhoai
+----
++
+image::37-code-server-git-clone.png[Code Server with cloned repo,link=self,window=blank,width=700]
+
+You now have a full IDE with the manifest tree, YAML syntax highlighting, and an integrated
+terminal — handy for browsing the Kustomize overlays and Helm charts used throughout the workshop.
+
 == Module summary
 
 **What you accomplished:**
