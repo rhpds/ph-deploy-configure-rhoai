@@ -397,20 +397,28 @@
         export API_KEY=$(curl -sSk -X POST "${HOST}/maas-api/v1/api-keys" \
           -H "Authorization: Bearer $(oc whoami -t)" \
           -H "Content-Type: application/json" \
-          -d '{"name":"e2e-key","expiresIn":"1h","subscription":"qwen25-05b-demo"}' | jq -r .key)
+          -d '{"name":"e2e-key-'$RANDOM'","expiresIn":"1h","subscription":"qwen25-05b-demo"}' | jq -r .key)
         # Wait for model to appear in catalog
-        for attempt in $(seq 1 20); do
+        for attempt in $(seq 1 30); do
           MODEL_JSON=$(curl -sSk "${HOST}/maas-api/v1/models" -H "Authorization: Bearer ${API_KEY}")
           echo "$MODEL_JSON" | jq -e '[.data[]? | select(.ready==true)][0]' >/dev/null 2>&1 && break
-          sleep 5
+          echo "models catalog not ready yet (attempt ${attempt}/30); retrying..."; sleep 10
         done
         MODEL_ID=$(echo "$MODEL_JSON" | jq -re '[.data[] | select(.ready==true)][0].id')
-        # Test body-based routing
-        RESPONSE=$(curl -sSk "${HOST}/v1/chat/completions" \
-          -H "Authorization: Bearer ${API_KEY}" \
-          -H "Content-Type: application/json" \
-          -d "{\"model\":\"${MODEL_ID}\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}],\"max_tokens\":50}")
+        # Test body-based routing (retry transient gateway errors)
+        for attempt in $(seq 1 5); do
+          RESPONSE=$(curl -sSk "${HOST}/v1/chat/completions" \
+            -H "Authorization: Bearer ${API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{\"model\":\"${MODEL_ID}\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}],\"max_tokens\":50}")
+          echo "$RESPONSE" | jq -e '.choices[0].message.content' >/dev/null 2>&1 && break
+          echo "inference not ready yet (attempt ${attempt}/5); retrying..."; sleep 10
+        done
         echo "$RESPONSE" | jq -e '.choices[0].message.content' || exit 1
+      register: result
+      until: result.rc == 0
+      retries: 3
+      delay: 30
       changed_when: false
 
     - name: "M5 | VERIFY — Gateway is Programmed"
