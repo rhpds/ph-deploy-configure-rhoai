@@ -6,7 +6,7 @@ project:
   initiative_key: none
   showroom_type: classic
   intake_type: migration
-  automation_type: ansible
+  automation_type: both
   description: "RHOAI Deploy & Configure Workshop \u2014 A CPU-completable, hands-on lab that walks participants through installing,\
     \ configuring, serving (vLLM), governing (MaaS), scaling (llm-d + KEDA), and observing Red Hat OpenShift AI on OCP 4.19+.\
     \ Supports RHOAI 3.4 and 3.5 from a single codebase using conditional content gating."
@@ -86,6 +86,8 @@ spec:
 development:
   automation:
     ansible:
+      status: complete
+    gitops:
       status: complete
   e2e:
     status: complete
