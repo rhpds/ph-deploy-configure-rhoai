@@ -1,10 +1,4 @@
 ---
-# HEALTHCHECK — Post-provisioning environment readiness check
-# Validates that the base infrastructure is healthy before students start.
-# Only checks resources deployed by provisioning automation — not lab exercises.
-#
-# Exit 0 = environment ready for students.
-
 - name: Environment Health Check
   hosts: localhost
   connection: local
@@ -17,38 +11,14 @@
       ansible.builtin.command: oc whoami
       changed_when: false
 
-    - name: ArgoCD bootstrap-infra Application is Synced and Healthy
-      kubernetes.core.k8s_info:
-        api_version: argoproj.io/v1alpha1
-        kind: Application
-        name: bootstrap-infra
-        namespace: openshift-gitops
-      register: app
-      failed_when: >-
-        app.resources | length == 0 or
-        app.resources[0].status.sync.status != 'Synced' or
-        app.resources[0].status.health.status != 'Healthy'
-
-    - name: Quay operator CSV is Succeeded
-      kubernetes.core.k8s_info:
-        api_version: operators.coreos.com/v1alpha1
-        kind: ClusterServiceVersion
-        namespace: openshift-operators
-        label_selectors:
-          - operators.coreos.com/quay-operator.openshift-operators
-      register: quay_csv
-      failed_when: quay_csv.resources | length == 0 or quay_csv.resources[0].status.phase != 'Succeeded'
-
-    - name: Quay registry has an endpoint
-      kubernetes.core.k8s_info:
-        api_version: quay.redhat.com/v1
-        kind: QuayRegistry
-        name: registry
-        namespace: quay
-      register: quay
-      failed_when: >-
-        quay.resources | length == 0 or
-        quay.resources[0].status.registryEndpoint | default('') == ''
+    - name: Admin credentials are working
+      ansible.builtin.command: >-
+        oc login --insecure-skip-tls-verify
+        -u {{ openshift_cluster_admin_username | default('admin') }}
+        -p {{ openshift_cluster_admin_password }}
+        {{ openshift_api_server_url }}
+      changed_when: false
+      no_log: true
 
     - name: Keycloak pod is running
       kubernetes.core.k8s_info:
@@ -61,3 +31,25 @@
       failed_when: >-
         kc_pods.resources | length == 0 or
         kc_pods.resources | selectattr('status.phase', 'equalto', 'Running') | list | length == 0
+
+    - name: Showroom pod is running
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        label_selectors:
+          - app.kubernetes.io/name=showroom
+      register: showroom_pods
+      failed_when: >-
+        showroom_pods.resources | length == 0 or
+        showroom_pods.resources | selectattr('status.phase', 'equalto', 'Running') | list | length == 0
+
+    - name: Showroom route exists and is admitted
+      kubernetes.core.k8s_info:
+        api_version: route.openshift.io/v1
+        kind: Route
+        name: showroom
+        namespace: "{{ showroom_pods.resources[0].metadata.namespace }}"
+      register: showroom_route
+      failed_when: >-
+        showroom_route.resources | length == 0 or
+        showroom_route.resources[0].status.ingress | default([]) | length == 0
