@@ -33,9 +33,9 @@
       kubernetes.core.k8s_info:
         api_version: operators.coreos.com/v1alpha1
         kind: ClusterServiceVersion
-        namespace: quay
+        namespace: openshift-operators
         label_selectors:
-          - operators.coreos.com/quay-operator.quay
+          - operators.coreos.com/quay-operator.openshift-operators
       register: quay_csv
       failed_when: quay_csv.resources | length == 0 or quay_csv.resources[0].status.phase != 'Succeeded'
 
