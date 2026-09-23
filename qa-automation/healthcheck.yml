@@ -50,10 +50,14 @@
         quay.resources | length == 0 or
         quay.resources[0].status.registryEndpoint | default('') == ''
 
-    - name: Keycloak admin user can authenticate
-      ansible.builtin.command: >-
-        oc login --insecure-skip-tls-verify
-        -u admin -p "{{ common_admin_password | default(omit) }}"
-        {{ openshift_api_url | default('https://api.' + (lookup('kubernetes.core.k8s', api_version='config.openshift.io/v1', kind='DNS', resource_name='cluster').spec.baseDomain) + ':6443') }}
-      changed_when: false
-      no_log: true
+    - name: Keycloak pod is running
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: keycloak
+        label_selectors:
+          - app=keycloak
+      register: kc_pods
+      failed_when: >-
+        kc_pods.resources | length == 0 or
+        kc_pods.resources | selectattr('status.phase', 'equalto', 'Running') | list | length == 0
