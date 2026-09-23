@@ -7,6 +7,12 @@
 #   Replays all student commands from Modules 1-6 on a fresh cluster.
 #   Acts as the automated "solve" — if this passes, the lab works.
 #
+# Idempotent:
+#   Safe to re-run on a cluster where a previous run partially or fully
+#   completed. Secrets are only created if missing, operators are applied
+#   with `oc apply` (no-op if unchanged), and restarts are skipped when
+#   deployments are already healthy.
+#
 # Scope:
 #   - Module 1: Install RHOAI operator (connected path)
 #   - Module 2: SKIPPED (disconnected/Quay — requires pre-synced registry)
@@ -27,7 +33,8 @@
 #   - Internet access (for git clone and operator installs)
 #
 # Runtime:
-#   ~30-45 minutes (operators need time to install and reconcile)
+#   ~30-45 minutes first run (operators need time to install and reconcile)
+#   ~5-10 minutes on re-run (most steps are no-ops, only verify tasks run)
 #
 # How manifests are accessed:
 #   The showroom runner container only mounts qa-automation/, not the full
@@ -49,6 +56,7 @@
 #   5. Use `changed_when: true` for apply/create tasks (they always change state)
 #   6. Use `changed_when: false` for read-only tasks (get, wait, whoami)
 #   7. Add retries for any task that depends on async operator reconciliation
+#   8. For idempotency: check if a resource exists before creating it
 # ============================================================================
 
 - name: End-to-End Test
@@ -91,6 +99,7 @@
     # ========================================================================
     # Installs the RHOAI operator via OLM subscription, then creates the
     # DSCInitialization and DataScienceCluster CRs that bootstrap the platform.
+    # All tasks use `oc apply` which is idempotent — safe to re-run.
 
     - name: "M1 | Install RHOAI operator"
       ansible.builtin.command:
@@ -140,7 +149,7 @@
     # Creates the project namespace, instantiates the vLLM CPU ServingRuntime
     # template that ships with RHOAI, and annotates it for the dashboard.
 
-    - name: "M3 | Create project namespace"
+    - name: "M3 | Create project namespace (idempotent)"
       ansible.builtin.command: >-
         oc new-project {{ project_name }}
       register: result
@@ -226,17 +235,25 @@
 
     # -- Exercise 1: PostgreSQL backend for MaaS ----------------------------
 
-    - name: "M5-Ex1 | Create PostgreSQL secrets"
+    # Check if PostgreSQL secrets already exist to avoid regenerating the
+    # password on re-runs (which would break the existing DB connection).
+    - name: "M5-Ex1 | Check if PostgreSQL secrets exist"
+      ansible.builtin.command: >-
+        oc get secret postgres-creds -n redhat-ods-applications
+      register: pg_secret_check
+      failed_when: false
+      changed_when: false
+
+    - name: "M5-Ex1 | Create PostgreSQL secrets (skipped if already exist)"
       ansible.builtin.shell: |
         POSTGRES_PASSWORD=$(openssl rand -base64 16 | tr -d '=+/')
         oc create secret generic postgres-creds -n redhat-ods-applications \
           --from-literal=POSTGRESQL_USER=maas \
           --from-literal=POSTGRESQL_PASSWORD="${POSTGRES_PASSWORD}" \
-          --from-literal=POSTGRESQL_DATABASE=maas \
-          --dry-run=client -o yaml | oc apply -f -
+          --from-literal=POSTGRESQL_DATABASE=maas
         oc create secret generic maas-db-config -n redhat-ods-applications \
-          --from-literal=DB_CONNECTION_URL="postgresql://maas:${POSTGRES_PASSWORD}@postgres:5432/maas?sslmode=disable" \
-          --dry-run=client -o yaml | oc apply -f -
+          --from-literal=DB_CONNECTION_URL="postgresql://maas:${POSTGRES_PASSWORD}@postgres:5432/maas?sslmode=disable"
+      when: pg_secret_check.rc != 0
       changed_when: true
 
     - name: "M5-Ex1 | Deploy PostgreSQL"
@@ -308,6 +325,14 @@
         chdir: "{{ repo_path }}"
       changed_when: true
 
+    # Check if gateway is already programmed to avoid unnecessary setup.
+    - name: "M5-Ex2 | Check if MaaS gateway exists"
+      ansible.builtin.command: >-
+        oc get gateway maas-default-gateway -n openshift-ingress
+      register: gw_check
+      failed_when: false
+      changed_when: false
+
     - name: "M5-Ex2 | Bootstrap MaaS gateway (ClusterIP + Route)"
       ansible.builtin.shell: |
         export CLUSTER_DOMAIN=$(oc get ingress.config cluster -o jsonpath='{.spec.domain}')
@@ -318,10 +343,17 @@
           -p "{\"status\":{\"loadBalancer\":{\"ingress\":[{\"hostname\":\"maas.${CLUSTER_DOMAIN}\"}]}}}"
         oc wait --for=condition=Programmed gateway/maas-default-gateway \
           -n openshift-ingress --timeout=5m
-        oc rollout restart deploy/maas-ui -n redhat-ods-applications
-        oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=60s
       args:
         chdir: "{{ repo_path }}"
+      when: gw_check.rc != 0
+      changed_when: true
+
+    # Only restart maas-ui if the gateway was just created (first run).
+    - name: "M5-Ex2 | Restart maas-ui after gateway setup (first run only)"
+      ansible.builtin.shell: |
+        oc rollout restart deploy/maas-ui -n redhat-ods-applications
+        oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=60s
+      when: gw_check.rc != 0
       changed_when: true
 
     # -- Exercise 3: Monitoring, serving operators, observability -----------
@@ -408,7 +440,16 @@
       retries: 10
       delay: 15
 
-    - name: "M5-Ex3 | Fix observability datasource and MonitoringStack"
+    # Check if MonitoringStack is already healthy to avoid bouncing pods.
+    - name: "M5-Ex3 | Check if MonitoringStack is already Available"
+      ansible.builtin.command: >-
+        oc wait --for=condition=Available monitoringstack/data-science-monitoringstack
+        -n redhat-ods-monitoring --timeout=5s
+      register: ms_check
+      failed_when: false
+      changed_when: false
+
+    - name: "M5-Ex3 | Fix observability datasource and MonitoringStack (first run only)"
       ansible.builtin.shell: |
         oc apply -k manifests/05-maas/observability-datasource
         oc create secret generic prometheus-web-tls-ca -n redhat-ods-monitoring \
@@ -419,9 +460,11 @@
           -n redhat-ods-monitoring --timeout=10m
       args:
         chdir: "{{ repo_path }}"
+      when: ms_check.rc != 0
       changed_when: true
 
     # -- Exercise 4: Enable MaaS in DataScienceCluster ---------------------
+    # `oc patch` with merge is idempotent — re-applying the same patch is a no-op.
 
     - name: "M5-Ex4 | Enable MaaS in DSC"
       ansible.builtin.shell: |
@@ -437,15 +480,25 @@
         chdir: "{{ repo_path }}"
       changed_when: true
 
-    - name: "M5-Ex4 | Restart dashboard and maas-ui"
+    # Check if dashboard and maas-ui are already running to skip unnecessary restart.
+    - name: "M5-Ex4 | Check if maas-ui is running"
+      ansible.builtin.command: >-
+        oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=5s
+      register: maas_ui_check
+      failed_when: false
+      changed_when: false
+
+    - name: "M5-Ex4 | Restart dashboard and maas-ui (first run only)"
       ansible.builtin.shell: |
         oc rollout restart deploy/rhods-dashboard -n redhat-ods-applications
         oc rollout status deploy/rhods-dashboard -n redhat-ods-applications --timeout=3m
         oc rollout restart deploy/maas-ui -n redhat-ods-applications
         oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=2m
+      when: maas_ui_check.rc != 0
       changed_when: true
 
     # -- Exercise 5: Deploy model via MaaS LLMInferenceService --------------
+    # `oc apply` is idempotent — re-applying existing manifests is a no-op.
 
     - name: "M5-Ex5 | Polling for LLMInferenceService Ready (retries expected, ~7 min)"
       ansible.builtin.shell: |
@@ -532,6 +585,7 @@
     # ========================================================================
     # Installs KEDA for autoscaling, deploys a second model via llm-d
     # LLMInferenceService, wires it into MaaS, and applies KEDA ScaledObject.
+    # All tasks use `oc apply` which is idempotent.
 
     - name: "M6-Ex1 | Install KEDA operator"
       ansible.builtin.command:
