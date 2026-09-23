@@ -38,6 +38,8 @@
 #   Operator installs and CRD reconciliation are async. Tasks that depend
 #   on operators use `until` + `retries` + `delay` to poll for readiness.
 #   Typical: 10-15 retries at 15-30s intervals = 5-7 min max wait per step.
+#   NOTE: Ansible prints "FAILED - RETRYING" during polling — this is normal
+#   behavior, NOT an error. A real failure shows "fatal:" in the output.
 #
 # Adding modules for your lab:
 #   1. Group tasks by module with a clear section header comment
@@ -100,7 +102,7 @@
         - manifests/01-install/operator/subscription-35.yaml
       changed_when: true
 
-    - name: "M1 | Wait for RHOAI CSV"
+    - name: "M1 | Polling for RHOAI CSV to succeed (retries expected, ~5 min)"
       ansible.builtin.command: >-
         oc wait csv -n redhat-ods-operator
         -l operators.coreos.com/rhods-operator.redhat-ods-operator
@@ -116,7 +118,7 @@
         chdir: "{{ repo_path }}"
       changed_when: true
 
-    - name: "M1 | Wait for DSC Ready"
+    - name: "M1 | Polling for DSC Ready (retries expected, ~5 min)"
       ansible.builtin.command: >-
         oc wait datasciencecluster/default-dsc --for=condition=Ready --timeout=60s
       register: result
@@ -180,7 +182,7 @@
         chdir: "{{ repo_path }}"
       changed_when: true
 
-    - name: "M4 | Wait for InferenceService Ready"
+    - name: "M4 | Polling for InferenceService Ready (retries expected, ~7 min)"
       ansible.builtin.command: >-
         oc wait inferenceservice/qwen25-05b -n {{ project_name }}
         --for=condition=Ready --timeout=60s
@@ -243,7 +245,7 @@
         chdir: "{{ repo_path }}"
       changed_when: true
 
-    - name: "M5-Ex1 | Wait for PostgreSQL"
+    - name: "M5-Ex1 | Polling for PostgreSQL rollout (retries expected, ~2 min)"
       ansible.builtin.command: >-
         oc rollout status deploy/postgres -n redhat-ods-applications --timeout=120s
       changed_when: false
@@ -256,7 +258,7 @@
         chdir: "{{ repo_path }}"
       changed_when: true
 
-    - name: "M5-Ex2 | Wait for RHCL CSV"
+    - name: "M5-Ex2 | Polling for RHCL CSV (retries expected, ~5 min)"
       ansible.builtin.shell: |
         oc wait --for=jsonpath='{.status.state}'=AtLatestKnown \
           subscription/rhcl-operator -n openshift-operators --timeout=60s
@@ -267,7 +269,7 @@
       retries: 10
       delay: 30
 
-    - name: "M5-Ex2 | Wait for cert-manager CSV"
+    - name: "M5-Ex2 | Polling for cert-manager CSV (retries expected, ~5 min)"
       ansible.builtin.shell: |
         oc wait --for=jsonpath='{.status.state}'=AtLatestKnown \
           subscription/openshift-cert-manager-operator -n cert-manager-operator --timeout=60s
@@ -286,7 +288,7 @@
         - oc apply -f manifests/05-maas/connectivity-link/kuadrant.yaml
       changed_when: true
 
-    - name: "M5-Ex2 | Wait for Kuadrant Ready"
+    - name: "M5-Ex2 | Polling for Kuadrant Ready (retries expected, ~2 min)"
       ansible.builtin.command: >-
         oc wait --for=condition=Ready kuadrant/kuadrant -n kuadrant-system --timeout=60s
       register: result
@@ -330,7 +332,7 @@
         chdir: "{{ repo_path }}"
       changed_when: true
 
-    - name: "M5-Ex3 | Wait for UWM stack"
+    - name: "M5-Ex3 | Polling for UWM stack (retries expected, ~3 min)"
       ansible.builtin.shell: |
         until oc get statefulset prometheus-user-workload -n openshift-user-workload-monitoring >/dev/null 2>&1; do
           sleep 5
@@ -347,7 +349,7 @@
         chdir: "{{ repo_path }}"
       changed_when: true
 
-    - name: "M5-Ex3 | Wait for LWS CSV"
+    - name: "M5-Ex3 | Polling for LWS CSV (retries expected, ~5 min)"
       ansible.builtin.shell: |
         oc wait --for=jsonpath='{.status.state}'=AtLatestKnown \
           subscription/leader-worker-set -n openshift-lws-operator --timeout=60s
@@ -358,7 +360,7 @@
       retries: 10
       delay: 30
 
-    - name: "M5-Ex3 | Wait for JobSet CSV"
+    - name: "M5-Ex3 | Polling for JobSet CSV (retries expected, ~5 min)"
       ansible.builtin.shell: |
         oc wait --for=jsonpath='{.status.state}'=AtLatestKnown \
           subscription/job-set -n openshift-jobset-operator --timeout=60s
@@ -381,7 +383,7 @@
         chdir: "{{ repo_path }}"
       changed_when: true
 
-    - name: "M5-Ex3 | Wait for COO + OTel CSVs"
+    - name: "M5-Ex3 | Polling for COO + OTel CSVs (retries expected, ~5 min)"
       ansible.builtin.shell: |
         oc wait --for=jsonpath='{.status.state}'=AtLatestKnown \
           subscription/cluster-observability-operator -n openshift-cluster-observability-operator --timeout=60s
@@ -396,7 +398,7 @@
       retries: 10
       delay: 30
 
-    - name: "M5-Ex3 | Wait for MonitoringStack ConfigMap"
+    - name: "M5-Ex3 | Polling for MonitoringStack ConfigMap (retries expected, ~3 min)"
       ansible.builtin.shell: |
         until oc get configmap prometheus-web-tls-ca -n redhat-ods-monitoring >/dev/null 2>&1; do
           sleep 10
@@ -445,7 +447,7 @@
 
     # -- Exercise 5: Deploy model via MaaS LLMInferenceService --------------
 
-    - name: "M5-Ex5 | Deploy model as LLMInferenceService"
+    - name: "M5-Ex5 | Polling for LLMInferenceService Ready (retries expected, ~7 min)"
       ansible.builtin.shell: |
         oc apply -k manifests/05-maas/model -n {{ project_name }}
         oc wait --for=condition=Ready llminferenceservice/qwen25-05b-maas \
@@ -472,7 +474,7 @@
 
     # -- Exercise 6: Verify MaaS end-to-end (API key → inference) ----------
 
-    - name: "M5-Ex6 | VERIFY — MaaSModelRef is Ready"
+    - name: "M5-Ex6 | Polling for MaaSModelRef Ready (retries expected, ~5 min)"
       kubernetes.core.k8s_info:
         api_version: maas.opendatahub.io/v1alpha1
         kind: MaaSModelRef
@@ -537,7 +539,7 @@
         chdir: "{{ repo_path }}"
       changed_when: true
 
-    - name: "M6-Ex1 | Wait for KEDA CSV"
+    - name: "M6-Ex1 | Polling for KEDA CSV (retries expected, ~5 min)"
       ansible.builtin.shell: >-
         oc wait --for=jsonpath='{.status.phase}'=Succeeded
         csv -l operators.coreos.com/openshift-custom-metrics-autoscaler-operator.openshift-keda=
@@ -561,7 +563,7 @@
         chdir: "{{ repo_path }}"
       changed_when: true
 
-    - name: "M6-Ex2 | Wait for llm-d LLMInferenceService Ready"
+    - name: "M6-Ex2 | Polling for llm-d LLMInferenceService Ready (retries expected, ~7 min)"
       ansible.builtin.command: >-
         oc wait --for=condition=Ready llminferenceservice/qwen25-05b-llmd
         -n {{ project_name }} --timeout=60s
@@ -582,7 +584,7 @@
         chdir: "{{ repo_path }}"
       changed_when: true
 
-    - name: "M6 | VERIFY — ScaledObject is Ready"
+    - name: "M6 | Polling for ScaledObject Ready (retries expected, ~2 min)"
       kubernetes.core.k8s_info:
         api_version: keda.sh/v1alpha1
         kind: ScaledObject
