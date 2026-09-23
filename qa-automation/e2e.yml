@@ -18,9 +18,21 @@
     KUBECONFIG: "{{ k8s_kubeconfig | default(omit) }}"
     K8S_AUTH_KUBECONFIG: "{{ k8s_kubeconfig | default(omit) }}"
   vars:
-    repo_path: "{{ lookup('env', 'REPO_PATH') | default(playbook_dir ~ '/..', true) }}"
+    repo_url: https://github.com/rhpds/ph-deploy-configure-rhoai.git
+    repo_ref: "{{ tag | default('main') }}"
+    repo_path: /tmp/ph-deploy-configure-rhoai
     project_name: rhoai-deploy
   tasks:
+
+    # ── Clone repo (manifests are not mounted in the runner) ────────────────
+
+    - name: "Clone repo for manifests"
+      ansible.builtin.git:
+        repo: "{{ repo_url }}"
+        dest: "{{ repo_path }}"
+        version: "{{ repo_ref }}"
+        depth: 1
+        force: true
 
     # ── Module 1: Install (Connected) ───────────────────────────────────────
 
