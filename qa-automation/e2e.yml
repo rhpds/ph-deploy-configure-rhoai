@@ -1,11 +1,53 @@
 ---
-# E2E — End-to-end test
-# Executes the learner's commands from Modules 1-6 on a fresh cluster.
-# Expects ALL modules (1-6) to have been completed on the target cluster.
-# Skips: Module 2 (disconnected), Module 5a (external models), optional/cleanup exercises,
-# read-only cat/ls commands, and watch (-w) commands.
+# ============================================================================
+# E2E — End-to-end lab validation test
+# ============================================================================
 #
-# Fails on the first broken step with a message identifying which module/step failed.
+# Purpose:
+#   Replays all student commands from Modules 1-6 on a fresh cluster.
+#   Acts as the automated "solve" — if this passes, the lab works.
+#
+# Scope:
+#   - Module 1: Install RHOAI operator (connected path)
+#   - Module 2: SKIPPED (disconnected/Quay — requires pre-synced registry)
+#   - Module 3: Model-Serving Platform setup
+#   - Module 4: vLLM inference with Qwen 2.5
+#   - Module 5: MaaS Governance (PostgreSQL, Connectivity Link, Gateway, etc.)
+#   - Module 6: llm-d scaling with KEDA
+#
+# When to run:
+#   - After lab content changes to verify instructions still work
+#   - On a FRESH cluster (not one where the lab was already completed)
+#   - Via ZT Runner: /stream/qa/e2e
+#   - Or manually: ansible-playbook qa-automation/e2e.yml
+#
+# Prerequisites:
+#   - Fresh cluster with base infra (healthcheck.yml should pass first)
+#   - cluster-admin credentials (oc logged in)
+#   - Internet access (for git clone and operator installs)
+#
+# Runtime:
+#   ~30-45 minutes (operators need time to install and reconcile)
+#
+# How manifests are accessed:
+#   The showroom runner container only mounts qa-automation/, not the full
+#   repo. So we git clone the repo at the start to get the manifests/ dir
+#   that students normally clone onto the bastion themselves.
+#
+# Retry strategy:
+#   Operator installs and CRD reconciliation are async. Tasks that depend
+#   on operators use `until` + `retries` + `delay` to poll for readiness.
+#   Typical: 10-15 retries at 15-30s intervals = 5-7 min max wait per step.
+#
+# Adding modules for your lab:
+#   1. Group tasks by module with a clear section header comment
+#   2. Name every task with the module prefix: "M<N> | <description>"
+#   3. End each module section with a VERIFY task that checks the outcome
+#   4. Use `chdir: "{{ repo_path }}"` for any `oc apply -f manifests/...`
+#   5. Use `changed_when: true` for apply/create tasks (they always change state)
+#   6. Use `changed_when: false` for read-only tasks (get, wait, whoami)
+#   7. Add retries for any task that depends on async operator reconciliation
+# ============================================================================
 
 - name: End-to-End Test
   hosts: localhost
@@ -18,13 +60,21 @@
     KUBECONFIG: "{{ k8s_kubeconfig | default(omit) }}"
     K8S_AUTH_KUBECONFIG: "{{ k8s_kubeconfig | default(omit) }}"
   vars:
+    # The repo URL and ref to clone for manifests access.
+    # `tag` comes from AgV common.yaml; defaults to main for local runs.
     repo_url: https://github.com/rhpds/ph-deploy-configure-rhoai.git
     repo_ref: "{{ tag | default('main') }}"
     repo_path: /tmp/ph-deploy-configure-rhoai
+    # The namespace students create for their model-serving work.
     project_name: rhoai-deploy
   tasks:
 
-    # ── Clone repo (manifests are not mounted in the runner) ────────────────
+    # ========================================================================
+    # SETUP — Clone repo so we have access to manifests/
+    # ========================================================================
+    # The runner container only mounts qa-automation/. Students clone the repo
+    # onto the bastion themselves, but the runner needs it too for oc apply.
+    # depth: 1 keeps the clone fast; force: true handles re-runs.
 
     - name: "Clone repo for manifests"
       ansible.builtin.git:
@@ -34,7 +84,11 @@
         depth: 1
         force: true
 
-    # ── Module 1: Install (Connected) ───────────────────────────────────────
+    # ========================================================================
+    # MODULE 1 — Install RHOAI Operator (Connected)
+    # ========================================================================
+    # Installs the RHOAI operator via OLM subscription, then creates the
+    # DSCInitialization and DataScienceCluster CRs that bootstrap the platform.
 
     - name: "M1 | Install RHOAI operator"
       ansible.builtin.command:
@@ -78,7 +132,11 @@
       register: dsc
       failed_when: dsc.resources | length == 0 or dsc.resources[0].status.phase != 'Ready'
 
-    # ── Module 3: Model-Serving Platform ────────────────────────────────────
+    # ========================================================================
+    # MODULE 3 — Model-Serving Platform
+    # ========================================================================
+    # Creates the project namespace, instantiates the vLLM CPU ServingRuntime
+    # template that ships with RHOAI, and annotates it for the dashboard.
 
     - name: "M3 | Create project namespace"
       ansible.builtin.command: >-
@@ -110,7 +168,11 @@
         oc get servingruntime vllm-cpu-x86-runtime -n {{ project_name }}
       changed_when: false
 
-    # ── Module 4: Serving with vLLM ─────────────────────────────────────────
+    # ========================================================================
+    # MODULE 4 — Serving with vLLM
+    # ========================================================================
+    # Deploys the Qwen 2.5 0.5B model as a KServe InferenceService using
+    # the vLLM CPU runtime. Verifies inference returns HTTP 200.
 
     - name: "M4 | Apply InferenceService"
       ansible.builtin.command:
@@ -151,7 +213,16 @@
       retries: 5
       delay: 10
 
-    # ── Module 5: MaaS Governance ───────────────────────────────────────────
+    # ========================================================================
+    # MODULE 5 — MaaS Governance
+    # ========================================================================
+    # Full MaaS stack: PostgreSQL backend, Connectivity Link (Kuadrant gateway),
+    # User Workload Monitoring, serving operators (LWS, JobSet), observability
+    # (COO, OTel), and finally enabling MaaS + GenAI in the DataScienceCluster.
+    #
+    # Exercise 5a (external models) is skipped — requires external API keys.
+
+    # -- Exercise 1: PostgreSQL backend for MaaS ----------------------------
 
     - name: "M5-Ex1 | Create PostgreSQL secrets"
       ansible.builtin.shell: |
@@ -176,6 +247,8 @@
       ansible.builtin.command: >-
         oc rollout status deploy/postgres -n redhat-ods-applications --timeout=120s
       changed_when: false
+
+    # -- Exercise 2: Connectivity Link (Kuadrant gateway) -------------------
 
     - name: "M5-Ex2 | Install Connectivity Link operators"
       ansible.builtin.command:
@@ -248,6 +321,8 @@
       args:
         chdir: "{{ repo_path }}"
       changed_when: true
+
+    # -- Exercise 3: Monitoring, serving operators, observability -----------
 
     - name: "M5-Ex3 | Enable User Workload Monitoring"
       ansible.builtin.command:
@@ -344,6 +419,8 @@
         chdir: "{{ repo_path }}"
       changed_when: true
 
+    # -- Exercise 4: Enable MaaS in DataScienceCluster ---------------------
+
     - name: "M5-Ex4 | Enable MaaS in DSC"
       ansible.builtin.shell: |
         oc patch datasciencecluster default-dsc --type merge \
@@ -365,6 +442,8 @@
         oc rollout restart deploy/maas-ui -n redhat-ods-applications
         oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=2m
       changed_when: true
+
+    # -- Exercise 5: Deploy model via MaaS LLMInferenceService --------------
 
     - name: "M5-Ex5 | Deploy model as LLMInferenceService"
       ansible.builtin.shell: |
@@ -390,6 +469,8 @@
       retries: 3
       delay: 15
       changed_when: true
+
+    # -- Exercise 6: Verify MaaS end-to-end (API key → inference) ----------
 
     - name: "M5-Ex6 | VERIFY — MaaSModelRef is Ready"
       kubernetes.core.k8s_info:
@@ -444,7 +525,11 @@
         gw.resources | length == 0 or
         not (gw.resources[0].status.conditions | default([]) | selectattr('type', 'eq', 'Programmed') | selectattr('status', 'eq', 'True') | list | length > 0)
 
-    # ── Module 6: Scaling llm-d ─────────────────────────────────────────────
+    # ========================================================================
+    # MODULE 6 — Scaling with llm-d and KEDA
+    # ========================================================================
+    # Installs KEDA for autoscaling, deploys a second model via llm-d
+    # LLMInferenceService, wires it into MaaS, and applies KEDA ScaledObject.
 
     - name: "M6-Ex1 | Install KEDA operator"
       ansible.builtin.command:
@@ -521,7 +606,9 @@
         llis.resources | length == 0 or
         not (llis.resources[0].status.conditions | default([]) | selectattr('type', 'eq', 'Ready') | selectattr('status', 'eq', 'True') | list | length > 0)
 
-    # ── Final ───────────────────────────────────────────────────────────────
+    # ========================================================================
+    # FINAL — Summary
+    # ========================================================================
 
     - name: "E2E complete"
       ansible.builtin.debug:
