@@ -1,4 +1,33 @@
 ---
+# ============================================================================
+# HEALTHCHECK — Post-provisioning environment readiness check
+# ============================================================================
+#
+# Purpose:
+#   Validates that the base infrastructure is healthy BEFORE students start.
+#   This runs automatically via the showroom runtime automation endpoint:
+#     /stream/qa/healthcheck
+#
+# Scope:
+#   Only checks resources deployed by provisioning automation.
+#   Does NOT check anything students install during the lab (e.g. RHOAI, MaaS).
+#
+# When it runs:
+#   - Triggered by ops via the ZT Runner /stream/qa/healthcheck endpoint
+#   - Can also be run manually: ansible-playbook qa-automation/healthcheck.yml
+#
+# Exit codes:
+#   0 = environment ready for students
+#   2 = one or more checks failed — investigate before seating students
+#
+# Adding checks for your lab:
+#   1. Only add checks for resources YOUR provisioning automation deploys
+#   2. Use kubernetes.core.k8s_info for pod/route checks (idempotent, no side effects)
+#   3. Use ansible.builtin.command for oc CLI checks (e.g. oc whoami, oc login)
+#   4. Every check should have a clear, descriptive name that ops can read at a glance
+#   5. Keep it fast — healthcheck should complete in under 30 seconds
+# ============================================================================
+
 - name: Environment Health Check
   hosts: localhost
   connection: local
@@ -7,10 +36,15 @@
     group/kubernetes.core.k8s:
       kubeconfig: "{{ k8s_kubeconfig | default(omit) }}"
   tasks:
+
+    # -- Check 1: Can we reach the cluster at all? ---------------------------
     - name: OpenShift API is reachable
       ansible.builtin.command: oc whoami
       changed_when: false
 
+    # -- Check 2: Admin credentials work -------------------------------------
+    # Uses the credentials passed by AgnosticV provisioning.
+    # no_log prevents passwords from appearing in the runner output stream.
     - name: Admin credentials are working
       ansible.builtin.command: >-
         oc login --insecure-skip-tls-verify
@@ -20,6 +54,9 @@
       changed_when: false
       no_log: true
 
+    # -- Check 3: Keycloak (authentication provider) ------------------------
+    # Deployed by ocp4_workload_authentication with provider: keycloak.
+    # Students need this to log in to the OCP console.
     - name: Keycloak pod is running
       kubernetes.core.k8s_info:
         api_version: v1
@@ -32,6 +69,10 @@
         kc_pods.resources | length == 0 or
         kc_pods.resources | selectattr('status.phase', 'equalto', 'Running') | list | length == 0
 
+    # -- Check 4: Showroom pod (lab UI) --------------------------------------
+    # The showroom pod contains 4 containers: traefik, content, runner, wetty.
+    # If this pod is not running, students cannot see lab instructions.
+    # No namespace filter — showroom namespace is dynamic (showroom-<guid>-1).
     - name: Showroom pod is running
       kubernetes.core.k8s_info:
         api_version: v1
@@ -43,6 +84,9 @@
         showroom_pods.resources | length == 0 or
         showroom_pods.resources | selectattr('status.phase', 'equalto', 'Running') | list | length == 0
 
+    # -- Check 5: Showroom route (external access) --------------------------
+    # Verifies the OpenShift Route exists and has been admitted by the router.
+    # Uses the namespace discovered from the showroom pod above.
     - name: Showroom route exists and is admitted
       kubernetes.core.k8s_info:
         api_version: route.openshift.io/v1
