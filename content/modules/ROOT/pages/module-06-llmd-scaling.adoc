@@ -555,7 +555,7 @@ Proceed to xref:07-conclusion.adoc[Conclusion] for a recap of the full platform 
 == References
 
 * Red Hat product documentation:
-** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/deploy_models_using_distributed_inference_with_llm-d/index[Deploy models using Distributed Inference with llm-d] (Chapter 7 — autoscaling)
+** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/deploy_models_using_distributed_inference_with_llm-d/index[Deploy models using Distributed Inference with llm-d] (Chapter 7 — autoscaling)
 ** https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/ai_workloads/index[OpenShift Container Platform 4.22 — AI workloads] (Leader Worker Set)
 ** https://docs.redhat.com/en/documentation/red_hat_openshift_container_platform/4.22/html/nodes/automatically-scaling-pods-with-the-custom-metrics-autoscaler-operator[Custom Metrics Autoscaler Operator]
 * Reference code:

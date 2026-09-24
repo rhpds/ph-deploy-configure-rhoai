@@ -286,9 +286,9 @@ Token auth protects the endpoint but leaves rate limits and usage accounting to 
 == References
 
 * Red Hat product documentation:
-** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/deploying_models/index[Deploying models] (making inference requests)
-** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/managing_and_monitoring_models/index[Managing and monitoring models]
-** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/configuring_your_model-serving_platform/index[Configuring your model-serving platform] (vLLM ServingRuntime)
+** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/deploying_models/index[Deploying models] (making inference requests)
+** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/managing_and_monitoring_models/index[Managing and monitoring models]
+** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/configuring_your_model-serving_platform/index[Configuring your model-serving platform] (vLLM ServingRuntime)
 * Reference code:
 ** https://github.com/vllm-project/vllm[vllm-project/vllm]
 

@@ -27,8 +27,8 @@ Congratulations — you have deployed, configured, served, governed, scaled, and
 
 == Resources
 
-* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4[{rhoai} {rhoai_version} documentation]
-* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/govern_llm_access_with_models-as-a-service/index[Govern LLM access with {maas}]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}[{rhoai} {rhoai_version} documentation]
+* link:https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/govern_llm_access_with_models-as-a-service/index[Govern LLM access with {maas}]
 
 Thank you for completing the workshop! Continue to xref:08-cleanup.adoc[Cleanup] to remove the lab
 resources.

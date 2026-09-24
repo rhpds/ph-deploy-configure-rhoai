@@ -326,7 +326,7 @@ If your cluster is air-gapped, follow xref:module-02-install-disconnected.adoc[M
 == References
 
 * Red Hat product documentation:
-** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/installing_and_uninstalling_openshift_ai_self-managed/index[Installing and uninstalling OpenShift AI Self-Managed]
+** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/installing_and_uninstalling_openshift_ai_self-managed/index[Installing and uninstalling OpenShift AI Self-Managed]
 * Reference code:
 ** https://github.com/opendatahub-io/opendatahub-operator[opendatahub-io/opendatahub-operator]
 

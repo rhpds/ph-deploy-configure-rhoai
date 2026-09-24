@@ -173,9 +173,9 @@ Continue to xref:module-04-vllm-serving.adoc[Module 4] to deploy your first mode
 == References
 
 * Red Hat product documentation:
-** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/configuring_your_model-serving_platform/index[Configuring your model-serving platform]
-** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/working_on_projects/index[Working on projects] (connections API)
-** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/deploying_models/index[Deploying models]
+** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/configuring_your_model-serving_platform/index[Configuring your model-serving platform]
+** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/working_on_projects/index[Working on projects] (connections API)
+** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/deploying_models/index[Deploying models]
 * Reference code:
 ** https://github.com/opendatahub-io/kserve[opendatahub-io/kserve]
 

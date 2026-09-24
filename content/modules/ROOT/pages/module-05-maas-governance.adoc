@@ -1193,9 +1193,9 @@ Continue to xref:module-06-llmd-scaling.adoc[Module 6] to add autoscaling: deplo
 == References
 
 * Red Hat product documentation:
-** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/govern_llm_access_with_models-as-a-service/index[Govern LLM access with Models-as-a-Service]
-** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/experimenting_with_models_in_the_gen_ai_playground/index[Experimenting with models in the gen AI playground]
-** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.4/html/managing_and_monitoring_models/index[Managing and monitoring models]
+** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/govern_llm_access_with_models-as-a-service/index[Govern LLM access with Models-as-a-Service]
+** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/experimenting_with_models_in_the_gen_ai_playground/index[Experimenting with models in the gen AI playground]
+** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/managing_and_monitoring_models/index[Managing and monitoring models]
 ** https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.3/html/installing_connectivity_link/index[Red Hat Connectivity Link 1.3 — Installing Connectivity Link]
 * Reference code:
 ** https://github.com/jharmison-redhat/maas-from-scratch[jharmison-redhat/maas-from-scratch]
