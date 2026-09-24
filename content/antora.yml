@@ -17,13 +17,13 @@ asciidoc:
     ocp-short: "OpenShift"
     maas: "Models-as-a-Service"
     rhcl: "Red Hat Connectivity Link"
-    rhoai_version: "3.4"
+    rhoai_version: "3.5"
     ocp_version: "4.19-4.22"
     # --- Version-specific MaaS values (override for 3.5 builds) ---
     maas_api_namespace: "redhat-ods-applications"
     dsc_maas_condition: "ModelsAsServiceReady"
     # --- Lab identity ---
-    lab_name: "RHOAI 3.4 Deploy & Configure"
+    lab_name: "RHOAI 3.5 Deploy & Configure"
     guid: abc123
     user: user1
     password: "%password%"
