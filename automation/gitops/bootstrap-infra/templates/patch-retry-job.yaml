@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bootstrap-retry-patcher
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bootstrap-retry-patcher
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    resourceNames: ["bootstrap-infra"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: bootstrap-retry-patcher
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+subjects:
+  - kind: ServiceAccount
+    name: bootstrap-retry-patcher
+    namespace: openshift-gitops
+roleRef:
+  kind: ClusterRole
+  name: bootstrap-retry-patcher
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bootstrap-retry-patcher
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      serviceAccountName: bootstrap-retry-patcher
+      restartPolicy: OnFailure
+      containers:
+        - name: patch
+          image: registry.redhat.io/openshift4/ose-cli-rhel9:latest
+          command:
+            - /bin/bash
+            - -ce
+            - |
+              oc patch application.argoproj.io bootstrap-infra \
+                -n openshift-gitops \
+                --type=merge \
+                -p '{"spec":{"syncPolicy":{"automated":{"selfHeal":true},"retry":{"limit":10,"backoff":{"duration":"5s","factor":2,"maxDuration":"3m"}}}}}'
+              echo "Patched bootstrap-infra with retry policy and selfHeal"
