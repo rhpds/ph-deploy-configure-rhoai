@@ -356,6 +356,22 @@
       when: gw_check.rc != 0
       changed_when: true
 
+    # CNV hairpin: pods can't reach *.apps via external VIP — point maas-ui
+    # at the gateway ClusterIP directly.
+    - name: "M5-Ex2 | Patch maas-ui hostAliases for gateway (hairpin fix)"
+      ansible.builtin.shell: |
+        GW_IP=$(oc get svc -n openshift-ingress \
+          -l gateway.networking.k8s.io/gateway-name=maas-default-gateway \
+          -o jsonpath='{.items[0].spec.clusterIP}')
+        GW_HOST=$(oc get svc -n openshift-ingress \
+          -l gateway.networking.k8s.io/gateway-name=maas-default-gateway \
+          -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')
+        oc patch deploy maas-ui -n redhat-ods-applications --type=json \
+          -p "[{\"op\":\"add\",\"path\":\"/spec/template/spec/hostAliases\",\"value\":[{\"ip\":\"${GW_IP}\",\"hostnames\":[\"${GW_HOST}\"]}]}]"
+        oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=60s
+      when: gw_check.rc != 0
+      changed_when: true
+
     # -- Exercise 3: Monitoring, serving operators, observability -----------
 
     - name: "M5-Ex3 | Enable User Workload Monitoring"
@@ -495,6 +511,20 @@
         oc rollout restart deploy/maas-ui -n redhat-ods-applications
         oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=2m
       when: maas_ui_check.rc != 0
+      changed_when: true
+
+    # CNV hairpin: re-apply after restart strips the previous patch.
+    - name: "M5-Ex4 | Patch maas-ui hostAliases for gateway (hairpin fix)"
+      ansible.builtin.shell: |
+        GW_IP=$(oc get svc -n openshift-ingress \
+          -l gateway.networking.k8s.io/gateway-name=maas-default-gateway \
+          -o jsonpath='{.items[0].spec.clusterIP}')
+        GW_HOST=$(oc get svc -n openshift-ingress \
+          -l gateway.networking.k8s.io/gateway-name=maas-default-gateway \
+          -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')
+        oc patch deploy maas-ui -n redhat-ods-applications --type=json \
+          -p "[{\"op\":\"add\",\"path\":\"/spec/template/spec/hostAliases\",\"value\":[{\"ip\":\"${GW_IP}\",\"hostnames\":[\"${GW_HOST}\"]}]}]"
+        oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=60s
       changed_when: true
 
     # -- Exercise 5: Deploy model via MaaS LLMInferenceService --------------
