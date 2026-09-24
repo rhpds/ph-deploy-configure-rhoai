@@ -5,7 +5,7 @@ metadata:
   name: {{ .Values.quay.registry.name }}-clair-app
   namespace: {{ .Values.quay.namespace }}
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "5"
 spec:
   maxReplicas: {{ .Values.quay.hpa.maxReplicas }}
   metrics:
@@ -33,7 +33,7 @@ metadata:
   name: {{ .Values.quay.registry.name }}-quay-app
   namespace: {{ .Values.quay.namespace }}
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "5"
 spec:
   maxReplicas: {{ .Values.quay.hpa.maxReplicas }}
   metrics:
