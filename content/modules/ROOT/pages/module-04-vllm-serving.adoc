@@ -37,13 +37,13 @@ only and disables the scheduler for single-node serving. It also exposes the mod
 
 You will see all of these in Exercise 3. Review the key fields before applying:
 
-Inspect the manifest:
-
+. Inspect the manifest:
++
 [source,bash,role="execute"]
 ----
 cat manifests/04-vllm/qwen25-05b/inferenceservice.yaml
 ----
-
++
 [source,yaml]
 ----
 apiVersion: serving.kserve.io/v1beta1
@@ -90,13 +90,15 @@ spec:
 <9> Bind threads to cores 0-3 (single NUMA node) for fast memory access.
 <10> Memory is bounded by `--max-model-len` + KV cache; 8Gi fits the 0.5B model.
 
+. Apply the manifest:
++
 [source,bash,role="execute",subs="attributes"]
 ----
 oc apply -k manifests/04-vllm/qwen25-05b -n {project_name}
 ----
 
-Wait for the model to become ready:
-
+. Wait for the model to become ready:
++
 [source,bash,role="execute",subs="attributes"]
 ----
 oc wait inferenceservice/qwen25-05b -n {project_name} --for=condition=Ready --timeout=15m
@@ -250,11 +252,15 @@ with {maas}, and it is where external access should ultimately be centralised.
 
 == Exercise 4 (Optional): Inspect the vLLM runtime arguments
 
+. Inspect the `InferenceService` manifest:
++
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get inferenceservice qwen25-05b -n {project_name} -o yaml | less
 ----
 
+. Inspect the `ServingRuntime` manifest:
++
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get servingruntime -n {project_name} -o yaml | less

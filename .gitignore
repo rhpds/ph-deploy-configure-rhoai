@@ -3,3 +3,5 @@ www/
 www-35/
 .cache/
 .claude/
+node_modules/
+.DS_Store

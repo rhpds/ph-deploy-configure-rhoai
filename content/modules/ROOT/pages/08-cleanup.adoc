@@ -24,6 +24,9 @@ oc delete -k manifests/05-maas/subscription --ignore-not-found
 oc delete -k manifests/04-vllm/qwen25-05b -n {project_name} --ignore-not-found
 ----
 
+Each `oc delete` prints the resource it removed, or is silently skipped by `--ignore-not-found` when
+nothing remains — the teardown is idempotent and safe to re-run.
+
 == Remove the project
 
 [source,bash,role="execute",subs="attributes"]

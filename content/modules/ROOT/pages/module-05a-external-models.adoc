@@ -103,7 +103,7 @@ An external model in {rhoai-short} {rhoai_version} requires five resources:
 
 |`Secret`
 |Stores the provider API key. Must have the label
- `inference.networking.k8s.io/bbr-managed: "true"` so the BBR ext-proc injects it into upstream
+ `inference.networking.k8s.io/bbr-managed: "true"` so the body-based routing (BBR) ext-proc injects it into upstream
  requests.
 
 |`ExternalModel`
@@ -133,13 +133,13 @@ Every `ExternalModel` references a credential `Secret`. The secret must carry th
 API key into upstream requests. Because llm-katan is an echo simulator it does not validate API
 keys — a dummy value is sufficient:
 
-Inspect the chart template:
-
+. Inspect the chart template:
++
 [source,bash,role="execute"]
 ----
 cat manifests/05-maas/llm-katan-simulator/templates/secrets.yaml
 ----
-
++
 [source,yaml]
 ----
 apiVersion: v1
@@ -159,16 +159,15 @@ stringData:
 <3> Any non-empty value works for llm-katan. For a real provider this would be the actual
     API key (OpenAI, Anthropic, Azure, etc.).
 
-The chart renders two kinds of external model. Four providers use the **high-level** maas
-`ExternalModel` — here is `sim-openai` as an example:
-
-Inspect the chart template:
-
+. Inspect the high-level `ExternalModel` chart template. The chart renders two kinds of external
+  model — four providers use the **high-level** maas `ExternalModel`; `sim-openai` is shown as an
+  example:
++
 [source,bash,role="execute"]
 ----
 cat manifests/05-maas/llm-katan-simulator/templates/external-models.yaml
 ----
-
++
 [source,yaml]
 ----
 apiVersion: maas.opendatahub.io/v1alpha1
@@ -195,16 +194,14 @@ spec:
 <5> Secret containing the API key (labelled `inference.llm-d.ai/ipp-managed: "true"` so IPP
     injects it into upstream requests).
 
-Each `ExternalModel` is published through a **`MaaSModelRef`** — the same pattern as locally-served
-models in Module 5:
-
-Inspect the chart template:
-
+. Inspect the `MaaSModelRef` chart template — each `ExternalModel` is published through a
+  **`MaaSModelRef`**, the same pattern as locally-served models in Module 5:
++
 [source,bash,role="execute"]
 ----
 cat manifests/05-maas/llm-katan-simulator/templates/maasmodelrefs.yaml
 ----
-
++
 [source,yaml]
 ----
 apiVersion: maas.opendatahub.io/v1alpha1
@@ -221,11 +218,11 @@ spec:
 <2> `kind: ExternalModel` — resolves to either the high-level maas or low-level inference
     variant. Governance (subscription, auth policy, rate limits) works identically for both.
 
-Vertex AI uses the **low-level** `inference.opendatahub.io` ExternalProvider + ExternalModel
-directly (see the NOTE in the resource model section above for why). The same chart template
-handles both high-level and low-level forms — providers with a `config:` block in `values.yaml`
-emit the low-level pair:
-
+. Inspect the low-level `ExternalProvider` + `ExternalModel` chart template. Vertex AI uses the
+  **low-level** `inference.opendatahub.io` forms directly (see the NOTE in the resource model
+  section above for why). The same chart template handles both high-level and low-level forms —
+  providers with a `config:` block in `values.yaml` emit the low-level pair:
++
 [source,yaml]
 ----
 apiVersion: inference.opendatahub.io/v1alpha1

@@ -8,6 +8,12 @@ Before any model can be served, {rhoai} {rhoai_version} must be installed. In th
 the operator on a *connected* {ocp} cluster and create a `DataScienceCluster` that enables the
 components the rest of the workshop depends on.
 
+== Prerequisites
+
+* A *connected* {ocp} cluster with cluster-admin access (see xref:getting-connected.adoc[Getting Connected])
+* An `oc` CLI session logged in to the cluster
+* Cluster pull secret with `registry.redhat.io` entitlements for {rhoai-short}
+
 == Learning objectives
 
 By the end of this module you will be able to:
@@ -66,13 +72,13 @@ active.
 
 The DSCI is applied once and rarely changes:
 
-Inspect the manifest:
-
+. Inspect the DSCInitialization (DSCI) manifest:
++
 [source,bash,role="execute"]
 ----
 cat manifests/01-install/dsc/dscinitialization.yaml
 ----
-
++
 [source,yaml]
 ----
 apiVersion: dscinitialization.opendatahub.io/v1
@@ -100,16 +106,14 @@ spec:
     use the cluster default; set it to a PEM string for a custom CA (e.g. a corporate proxy).
 
 ifeval::["{rhoai_version}" == "3.5"]
-The DSC controls every {rhoai-short} subsystem via `managementState: Managed | Removed`. Review
-the key sections before applying:
-
-Inspect the manifest:
-
+. Inspect the DataScienceCluster (DSC) manifest. The DSC controls every {rhoai-short} subsystem
+  via `managementState: Managed | Removed` — review the key sections before applying:
++
 [source,bash,role="execute"]
 ----
 cat manifests/01-install/dsc/datasciencecluster.yaml
 ----
-
++
 [source,yaml]
 ----
 apiVersion: datasciencecluster.opendatahub.io/v1
@@ -150,11 +154,9 @@ spec:
 endif::[]
 
 ifeval::["{rhoai_version}" == "3.4"]
-The DSC controls every {rhoai-short} subsystem via `managementState: Managed | Removed`. Review
-the key sections before applying:
-
-Inspect the manifest:
-
+. Inspect the DataScienceCluster (DSC) manifest. The DSC controls every {rhoai-short} subsystem
+  via `managementState: Managed | Removed` — review the key sections before applying:
++
 [source,bash,role="execute"]
 ----
 cat manifests/01-install/dsc/datasciencecluster-34.yaml
@@ -238,7 +240,7 @@ With the cluster ready, let's open the dashboard so you can see {rhoai-short} fr
 oc get route rhods-dashboard -n redhat-ods-applications -o jsonpath='https://{.spec.host}{"\n"}'
 ----
 
-. Log in with `{openshift_cluster_admin_username}` / `{openshift_cluster_admin_password}` and confirm the {rhoai-short} home page loads.
+. Log in with {user} / {password} and confirm the {rhoai-short} home page loads.
 
 === Verify
 
@@ -252,6 +254,8 @@ With the dashboard confirmed, let's verify the namespace structure that underpin
 
 == Exercise 4: Confirm the predefined namespaces
 
+. Confirm the predefined namespaces exist:
++
 [source,bash,role="execute"]
 ----
 oc get ns redhat-ods-operator redhat-ods-applications rhods-notebooks

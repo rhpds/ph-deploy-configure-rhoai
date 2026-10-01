@@ -76,8 +76,8 @@ below waits for its prerequisite before moving on.
 
 . Install the {rhcl} and cert-manager operators (subscriptions only). The RHCL subscription
   includes a timeout tuning for Authorino's ext_authz service:
-+
-Inspect the manifest:
+
+. Inspect the {rhcl} subscription manifest:
 +
 [source,bash,role="execute"]
 ----
@@ -131,8 +131,8 @@ image::10-rhcl-operator.png[RHCL Operator,link=self,window=blank,width=800]
 
 . Register Kuadrant now that its CRD exists. The `Kuadrant` CR bootstraps Authorino
   (authentication) and Limitador (rate limiting) in the `kuadrant-system` namespace:
-+
-Inspect the manifest:
+
+. Inspect the Kuadrant manifest:
 +
 [source,bash,role="execute"]
 ----
@@ -212,10 +212,10 @@ oc wait --for=condition=Programmed gateway/maas-default-gateway \
 oc rollout restart deploy/maas-ui -n redhat-ods-applications
 oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=60s
 ----
-+
-. The `maas-ui` pod reaches the MaaS API via the gateway's external hostname. On this cluster
-  the pod network cannot route to the external ingress VIP — patch the deployment with a
-  `hostAliases` entry so the pod resolves the gateway hostname directly to the gateway service:
+
+*Patch `maas-ui` so the pod reaches the gateway's external hostname.* On this cluster the pod
+network cannot route to the external ingress VIP — patch the deployment with a `hostAliases` entry
+so the pod resolves the gateway hostname directly to the gateway service:
 +
 [source,bash,role="execute"]
 ----
@@ -446,9 +446,9 @@ With the observability stack healthy, let's enable MaaS in the platform and surf
 
 . Enable MaaS in the `DataScienceCluster` and the dashboard. The DSC patch flips on the
   MaaS subsystem that was intentionally left `Removed` at install time:
-+
+
 ifeval::["{rhoai_version}" == "3.4"]
-Inspect the manifest:
+. Inspect the DSC MaaS patch manifest:
 +
 [source,bash,role="execute"]
 ----
@@ -481,7 +481,7 @@ This sets `spec.components.kserve.modelsAsService.managementState: Managed` in t
 feature flags in `OdhDashboardConfig`.
 endif::[]
 ifeval::["{rhoai_version}" == "3.5"]
-Inspect the manifest:
+. Inspect the DSC MaaS patch manifest:
 +
 [source,bash,role="execute"]
 ----
@@ -538,7 +538,7 @@ ifeval::["{rhoai_version}" == "3.5"]
 oc rollout restart deploy/maas-ui -n redhat-ods-applications
 oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=2m
 ----
-+
+
 . Re-apply the `hostAliases` patch so the `maas-ui` pod can reach the gateway hostname
   (the restart above resets the deployment spec):
 +
@@ -656,21 +656,21 @@ limit.
 
 . Apply the governance CRs. Three resources work together to publish the model through the
   gateway with authentication and rate limiting:
-+
-Review the manifests:
+
+. Review the governance CR manifests:
 +
 [source,bash,role="execute"]
 ----
 ls manifests/05-maas/subscription/
 ----
 +
-[source,yaml]
+[source,yaml,subs="attributes+"]
 ----
 apiVersion: maas.opendatahub.io/v1alpha1
 kind: MaaSModelRef                      # <1>
 metadata:
   name: qwen25-05b-maas
-  namespace: rhoai-deploy               # <2>
+  namespace: {project_name}             # <2>
 spec:
   modelRef:
     kind: LLMInferenceService
@@ -690,7 +690,7 @@ spec:
     organizationId: na
   modelRefs:
     - name: qwen25-05b-maas
-      namespace: rhoai-deploy
+      namespace: {project_name}
       tokenRateLimits:
         - limit: 100
           window: 1m                     # <7>
@@ -706,7 +706,7 @@ spec:
       - name: system:authenticated:oauth
   modelRefs:
     - name: qwen25-05b-maas
-      namespace: rhoai-deploy
+      namespace: {project_name}
 ----
 <1> Publishes the model through MaaS — makes it appear in `/maas-api/v1/models`.
 <2> Must live in the **same namespace** as the `LLMInferenceService` it references.
@@ -744,8 +744,8 @@ image::14-maas-subscription-maas-model.png[MaaS Subscription and MaaS Model,link
 . Wire up per-subscription telemetry so gateway token usage is broken out by subscription. Both
   CRs target `maas-default-gateway` and build on the `MaaSAuthPolicy` you just created, so they are
   applied after governance. You *view* these metrics in Exercise 8, after generating traffic:
-+
-Review the manifests:
+
+. Review the telemetry manifests:
 +
 [source,bash,role="execute"]
 ----
@@ -921,8 +921,7 @@ image::16-maas-model-success.png[MaaS Body-Based Routing Model Success,link=self
 
 [NOTE]
 ====
-*Body-based routing requires the full catalog `id`* (e.g.
-`publishers/rhoai-deploy/models/qwen25-05b`), not the short model name (`qwen25-05b`). The
+*Body-based routing requires the full catalog `id`* (e.g. publishers/{project_name}/models/qwen25-05b), not the short model name (`qwen25-05b`). The
 gateway resolves the model from the body and matches it against the catalog — the short name
 returns a 404. Path-based routing uses the short name in the *body* and the namespace path
 in the *URL*.
@@ -959,9 +958,9 @@ Now let's verify the subscription limit is actually being enforced — not just 
 
 == Exercise 7: Demonstrate rate limiting
 
-Send requests beyond the subscription's token limit and observe throttling. This reuses the
-`$HOST`, `$API_KEY`, `$MODEL_ID`, and `$MODEL_PATH` variables exported in the previous step.
-
+. Send requests beyond the subscription's token limit and observe throttling. This reuses the
+  `$HOST`, `$API_KEY`, `$MODEL_ID`, and `$MODEL_PATH` variables exported in the previous step:
++
 [source,bash,role="execute"]
 ----
 for i in $(seq 1 16); do
@@ -981,7 +980,7 @@ image::17-maas-rate-limit.png[MaaS Rate Limiting,link=self,window=blank,width=80
 
 == Exercise 8: View engine metrics and MaaS telemetry
 
-NOTE: Two separate metric paths converge on the dashboard here. *Engine metrics* (`kserve_vllm:*` series) flow from vLLM → `ServiceMonitor` → User Workload Monitoring (Exercise 3a) → Thanos Querier → the OCP console *Observe -> Metrics* page. *MaaS telemetry* (`authorized_hits`, `limited_calls`) flows from the Limitador rate limiter → Istio `Telemetry` + Kuadrant `TelemetryPolicy` (Exercise 5) → the {rhoai-short} dashboard *Observe & monitor* view. They measure different things: engine metrics show what vLLM processed; MaaS telemetry shows what the gateway counted against the subscription limit.
+NOTE: Two separate metric paths converge on the dashboard here. *Engine metrics* (`kserve_vllm:*` series) flow from vLLM → `ServiceMonitor` → User Workload Monitoring (Exercise 3a) → Thanos Querier → the {ocp} console *Observe -> Metrics* page. *MaaS telemetry* (`authorized_hits`, `limited_calls`) flows from the Limitador rate limiter → Istio `Telemetry` + Kuadrant `TelemetryPolicy` (Exercise 5) → the {rhoai-short} dashboard *Observe & monitor* view. They measure different things: engine metrics show what vLLM processed; MaaS telemetry shows what the gateway counted against the subscription limit.
 
 The traffic from Exercises 6 and 7 has populated both paths.
 
@@ -1114,7 +1113,7 @@ oc wait --for=condition=OGXReady datasciencecluster/default-dsc --timeout=5m
 endif::[]
 
 . In the {rhoai-short} dashboard, open *Gen AI studio -> Playground* (reload the dashboard if the
-  nav entry has not appeared yet). Use the `rhoai-deploy` Project. If this is the first time the project uses the playground, click
+  nav entry has not appeared yet). Use the {project_name} Project. If this is the first time the project uses the playground, click
   *Configure playground* to provision the per-project
 ifeval::["{rhoai_version}" == "3.4"]
 Llama Stack

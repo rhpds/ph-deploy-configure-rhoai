@@ -26,6 +26,8 @@ By the end of this module you will be able to:
 
 == Exercise 1: Create the workshop project
 
+. Create the project and label it for the dashboard:
++
 [source,bash,role="execute",subs="attributes"]
 ----
 oc new-project {project_name} 2>/dev/null || oc project {project_name}
@@ -45,16 +47,16 @@ With the project in place, let's enable model serving at the cluster level.
 
 == Exercise 2: Enable model serving
 
-Single-model serving (KServe) is enabled cluster-wide in the {rhoai-short} dashboard. In
-{rhoai-short} 3.4 the multi-model (ModelMesh) platform has been removed, so the older
+Single-model serving (KServe) is enabled cluster-wide in the {rhoai-short} dashboard. The
+multi-model (ModelMesh) platform has been removed, so the older
 *Model serving platforms* checkboxes are replaced by a single *Enable model serving* toggle.
 
 . In the {rhoai-short} dashboard, go to *Settings -> Cluster settings -> General settings*.
 
 . Under *Model deployments*, ensure *Enable model serving* is on.
 
-Alternatively confirm KServe is managed in the DSC:
-
+. Alternatively, confirm KServe is managed in the DSC:
++
 [source,bash,role="execute"]
 ----
 oc get datasciencecluster default-dsc -o jsonpath='{.spec.components.kserve.managementState}{"\n"}'
@@ -65,7 +67,7 @@ oc get datasciencecluster default-dsc -o jsonpath='{.spec.components.kserve.mana
 * The single-model serving option is available when you create a model server in a project, and the
   command above prints `Managed`.
 
-NOTE: In {rhoai-short} 3.4, multi-model serving (ModelMesh) has been removed. The platform now uses
+NOTE: Multi-model serving (ModelMesh) has been removed from {rhoai-short}. The platform now uses
 *KServe exclusively*: each model runs in its own pod with dedicated resources. This gives you
 stronger isolation and GPU slice assignment per model, at the cost of per-model pod overhead.
 
@@ -90,12 +92,16 @@ path (`oc process`) skips this, so the dashboard would show the model under *Unk
 Runtime*. The `oc annotate` step below adds those annotations — this is cosmetic; the model serves
 correctly either way.
 
+. Instantiate the vLLM CPU runtime template into the project:
++
 [source,bash,role="execute",subs="attributes"]
 ----
 oc process -n redhat-ods-applications vllm-cpu-x86-runtime-template \
   | oc apply -n {project_name} -f -
 ----
 
+. Stamp the template-origin annotations the dashboard expects:
++
 [source,bash,role="execute",subs="attributes"]
 ----
 oc annotate servingruntime vllm-cpu-x86-runtime -n {project_name} \
@@ -128,6 +134,8 @@ were serving weights from object storage, you would create an S3 (or URI) connec
 model could be auto-injected at deploy time, then point the `InferenceService` `storageUri` at an
 `s3://` path instead of the `oci://` modelcar.
 
+. Create the S3 connection Secret from the template:
++
 [source,bash,role="execute",subs="attributes"]
 ----
 # Edit the placeholders in the template first (endpoint, bucket, keys), then apply:
@@ -146,10 +154,10 @@ oc get secret aws-connection-models -n {project_name} \
 
 == Exercise 5 (Optional): Set a default deployment strategy
 
-On the same *Settings -> Cluster settings -> General settings* page, under *Default deployment
-strategy*, choose a cluster-wide default for KServe deployments (*Rolling update* or *Recreate*)
-to match your update-availability requirements.
-
+. On the same *Settings -> Cluster settings -> General settings* page, under *Default deployment
+  strategy*, choose a cluster-wide default for KServe deployments (*Rolling update* or *Recreate*)
+  to match your update-availability requirements.
++
 image::05-default-deployment-settings.png[Default Deployment Strategy,link=self,window=blank,width=800]
 
 == Module summary
@@ -162,7 +170,7 @@ image::05-default-deployment-settings.png[Default Deployment Strategy,link=self,
 
 **Key takeaways:**
 
-* KServe is now the only model-serving platform in {rhoai-short} 3.4 — each model runs in its own pod with dedicated resources
+* KServe is now the only model-serving platform in {rhoai-short} {rhoai_version} — each model runs in its own pod with dedicated resources
 * The vLLM CPU runtime is pre-installed as a cluster-level template; you instantiate it per project
 * The `oc annotate` step is a CLI-vs-dashboard gap: it stamps metadata the dashboard expects, not configuration the runtime requires
 

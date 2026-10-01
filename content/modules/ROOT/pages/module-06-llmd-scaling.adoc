@@ -67,7 +67,7 @@ oc wait --for=jsonpath='{.status.phase}'=Succeeded \
   -n openshift-keda --timeout=5m
 ----
 
-. Activate KEDA by creating the `KedaController` (its CRD exists only after the CSV above is
+. Activate KEDA by creating the `KedaController` (its Custom Resource Definition (CRD) exists only after the CSV above is
 `Succeeded`, which is why it is applied separately from the subscription):
 +
 [source,bash,role="execute"]
@@ -104,13 +104,13 @@ Module 5 telemetry.
 
 Review the key fields of the `LLMInferenceService` before applying:
 
-Inspect the manifest:
-
+. Inspect the manifest:
++
 [source,bash,role="execute"]
 ----
 cat manifests/06-llmd/service/llminferenceservice.yaml
 ----
-
++
 [source,yaml]
 ----
 apiVersion: serving.kserve.io/v1alpha1
@@ -156,13 +156,39 @@ spec:
     measurable `num_requests_waiting` signal to scale on.
 <9> Memory is bounded by `--max-model-len` + KV cache size. 8Gi fits the 0.5B model.
 
+. Apply the `LLMInferenceService` and watch the pods come up:
++
 [source,bash,role="execute",subs="attributes"]
 ----
 oc apply -k manifests/06-llmd/service -n {project_name}
 oc get pods -n {project_name} -w
 ----
-
++
 image::28-llmd-inference-model.png[LLM Inference Model Deployment,link=self,window=blank,width=800]
+
+. Note the Deployment name KServe created — the autoscaler targets it in Exercise 4
+  (expected: `qwen25-05b-llmd-kserve`). Export it now so you have it ready:
++
+[source,bash,role="execute",subs="attributes"]
+----
+oc get deploy -n {project_name} -l app.kubernetes.io/name=qwen25-05b-llmd,kserve.io/component=workload
+export DEPLOY_NAME=$(oc get deploy -n {project_name} \
+  -l app.kubernetes.io/name=qwen25-05b-llmd,kserve.io/component=workload \
+  -o jsonpath='{.items[0].metadata.name}')
+echo "Target deployment: $DEPLOY_NAME"
+----
++
+[NOTE]
+====
+*The `LLMInferenceService` deliberately omits `spec.replicas`* so the KEDA `ScaledObject` in
+Exercise 4 can own the replica count. KServe's llm-d controller only yields the workload Deployment's
+replica count to an external autoscaler when `spec.replicas` is unset; the apiserver then defaults the
+Deployment to `1` on create, and KEDA scales from there. If you *set* `spec.replicas`, the controller
+rewrites the count on every reconcile and fights KEDA — newly added pods go `Terminating` and the
+count snaps back to your fixed value (queue depth builds but replicas never hold). *Do not add
+`spec.replicas` to this manifest.* The GPU-only `spec.scaling.wva` form (<<Exercise 6 (Reference):
+Workload Variant Autoscaler on GPU>>) is the mutually-exclusive alternative.
+====
 
 === Verify
 
@@ -187,30 +213,6 @@ oc get llminferenceservice qwen25-05b-llmd -n {project_name}
 
 The model is serving behind the gateway. Now let's publish it through MaaS so the load test traffic is governed and metered.
 
-* Note the Deployment name KServe created — the autoscaler targets it in Exercise 4
-  (expected: `qwen25-05b-llmd-kserve`). Export it now so you have it ready:
-+
-[source,bash,role="execute",subs="attributes"]
-----
-oc get deploy -n {project_name} -l app.kubernetes.io/name=qwen25-05b-llmd,kserve.io/component=workload
-export DEPLOY_NAME=$(oc get deploy -n {project_name} \
-  -l app.kubernetes.io/name=qwen25-05b-llmd,kserve.io/component=workload \
-  -o jsonpath='{.items[0].metadata.name}')
-echo "Target deployment: $DEPLOY_NAME"
-----
-+
-[NOTE]
-====
-*The `LLMInferenceService` deliberately omits `spec.replicas`* so the KEDA `ScaledObject` in
-Exercise 4 can own the replica count. KServe's llm-d controller only yields the workload Deployment's
-replica count to an external autoscaler when `spec.replicas` is unset; the apiserver then defaults the
-Deployment to `1` on create, and KEDA scales from there. If you *set* `spec.replicas`, the controller
-rewrites the count on every reconcile and fights KEDA — newly added pods go `Terminating` and the
-count snaps back to your fixed value (queue depth builds but replicas never hold). *Do not add
-`spec.replicas` to this manifest.* The GPU-only `spec.scaling.wva` form (<<Exercise 6 (Reference):
-Workload Variant Autoscaler on GPU>>) is the mutually-exclusive alternative.
-====
-
 == Exercise 3: Publish the scaling model through MaaS
 
 The model now serves behind the MaaS gateway, which *default-denies* — every request needs an API
@@ -227,13 +229,13 @@ Review the manifests:
 ls manifests/06-llmd/maas-subscription/
 ----
 +
-[source,yaml]
+[source,yaml,subs="attributes+"]
 ----
 apiVersion: maas.opendatahub.io/v1alpha1
 kind: MaaSModelRef
 metadata:
   name: qwen25-05b-llmd
-  namespace: rhoai-deploy                # <1>
+  namespace: {project_name}                # <1>
 spec:
   modelRef:
     kind: LLMInferenceService            # <2>
@@ -253,7 +255,7 @@ spec:
     organizationId: na
   modelRefs:
     - name: qwen25-05b-llmd
-      namespace: rhoai-deploy
+      namespace: {project_name}
       tokenRateLimits:
         - limit: 5000000
           window: 1m                      # <5>
@@ -268,6 +270,8 @@ spec:
 <5> 5 million tokens / minute — effectively unlimited for a 0.5B CPU model. Unlike Module
     5's 100-token cap (which demonstrates rate limiting), this lets the load test build a
     request queue for KEDA to scale on without being throttled.
+
+. Apply the manifests:
 +
 [source,bash,role="execute"]
 ----
@@ -308,14 +312,14 @@ vLLM Deployment on queue depth (`vllm:num_requests_waiting`) pulled from Thanos.
 
 Review the `ScaledObject` — this is what tells KEDA *when* and *how far* to scale:
 
-Inspect the manifest:
-
+. Inspect the manifest:
++
 [source,bash,role="execute"]
 ----
 cat manifests/06-llmd/autoscaling-keda/scaledobject.yaml
 ----
-
-[source,yaml]
++
+[source,yaml,subs="attributes+"]
 ----
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
@@ -335,7 +339,7 @@ spec:
         serverAddress: https://thanos-querier  # <6>
         query: >-
           sum(vllm:num_requests_waiting
-          {namespace="rhoai-deploy"})           # <7>
+          {namespace="{project_name}"})           # <7>
         threshold: "5"                          # <8>
       authenticationRef:
         name: ai-inference-keda-thanos          # <9>
@@ -346,7 +350,7 @@ spec:
 <4> KEDA polls the metric every 15 seconds.
 <5> After the metric drops below the threshold, KEDA waits 60s before scaling down —
     prevents flapping on bursty traffic.
-<6> In-cluster Thanos querier (port 9091, RBAC-gated).
+<6> In-cluster Thanos querier (port 9091, role-based access control (RBAC) gated).
 <7> Sum of `vllm:num_requests_waiting` across all vLLM pods in the namespace — this is the
     inference queue depth. Requests queue when `--max-num-seqs` (8) is saturated.
 <8> Scale when the average queue depth per replica exceeds 5. With `--max-num-seqs=8` and
@@ -354,6 +358,8 @@ spec:
 <9> `ClusterTriggerAuthentication` that supplies a ServiceAccount token with
     `cluster-monitoring-view` RBAC — lets KEDA read from Thanos.
 
+. Apply the autoscaling resources:
++
 [source,bash,role="execute"]
 ----
 oc apply -k manifests/06-llmd/autoscaling-keda
@@ -371,7 +377,7 @@ NOTE: The `ScaledObject` targets `qwen25-05b-llmd-kserve`. If `$DEPLOY_NAME` fro
 
 === Verify
 
-* The `ScaledObject` reports `READY=True` and creates an underlying HPA:
+* The `ScaledObject` reports `READY=True` and creates an underlying Horizontal Pod Autoscaler (HPA):
 +
 [source,bash,role="execute",subs="attributes"]
 ----
@@ -431,7 +437,7 @@ export MODEL_NAME=$(echo "$MODEL_JSON" | jq -re '[.data[] | select(.owned_by | t
 export MODEL_PATH="/${MODEL_OWNED}"
 echo "Model: $MODEL_NAME  ->  ${HOST}${MODEL_PATH}"
 ----
-
++
 [NOTE]
 ====
 *The first request after the model starts is slow — this is expected.* A freshly started (or
@@ -440,7 +446,7 @@ may even hit the gateway's default 30s route timeout and return `504`/`500`. Thi
 warm-up, not a failure: once the engine is warm, completions return in ~2 seconds. If your first
 call times out, simply run it again — subsequent requests (and the load loop below) are fast.
 ====
-
++
 TIP: Use *sustained* load, not a burst. A one-shot burst fires all requests at once and drains before the ~30s UWM scrape and 15s KEDA poll can observe the queue — so the metric never crosses the threshold and nothing scales. The generator below holds a fixed number of requests in flight for the full duration, keeping `num_requests_waiting` above the `ScaledObject` threshold long enough for KEDA to react. With concurrency `16` against `--max-num-seqs=8`, roughly 8 requests stay queued → the deployment scales to 2 replicas (`ceil(8 / threshold 5)`). Raise concurrency to `-c 32` to push toward `maxReplicaCount` (4).
 
 . Generate sustained concurrent load through the gateway. The script reads `HOST`, `MODEL_PATH`, `MODEL_NAME`, and `API_KEY` from the environment you exported above (standard-library Python, no `pip install`):

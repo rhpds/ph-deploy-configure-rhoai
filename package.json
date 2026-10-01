@@ -1,0 +1,13 @@
+{
+  "name": "ph-deploy-configure-rhoai",
+  "version": "1.5.2",
+  "private": true,
+  "description": "Antora site for the RHOAI 3.5 Deploy & Configure workshop",
+  "scripts": {
+    "build": "antora site.yml --stacktrace"
+  },
+  "devDependencies": {
+    "@antora/cli": "^3.1.7",
+    "@antora/site-generator": "^3.1.7"
+  }
+}

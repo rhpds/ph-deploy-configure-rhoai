@@ -32,6 +32,14 @@ air-gapped install is a larger exercise; refer to the references at the end of t
 complete disconnected OpenShift workflow.
 ====
 
+== Prerequisites
+
+* A running {ocp} cluster with cluster-admin access
+* A cluster pull secret with `registry.redhat.io` entitlements (consumed by oc-mirror in Exercise 1)
+* ~315 GB of PVC capacity for the mirror workspace and tar archive (Exercise 1)
+* A Quay mirror registry on the disconnected side, or a Quay.io organization with proxy caching
+  enabled (Exercises 3 and 7)
+
 == Learning objectives
 
 By the end of this module you will be able to:
@@ -80,6 +88,8 @@ pinned to `v4.22`. If your cluster differs, update the `catalog:` tag before run
 ----
 oc get clusterversion version -o jsonpath='{.status.desired.version}{"\n"}'
 ----
++
+Expected: the full cluster version, e.g. `4.22.9` — the minor must match the `catalog:` tag.
 
 . Create a PVC and pod to simulate the connected mirror host. The PVC needs enough space for
   the mirror workspace (~315 GB for {rhoai-short} operators + dependencies) plus the tar archive:
@@ -88,6 +98,8 @@ oc get clusterversion version -o jsonpath='{.status.desired.version}{"\n"}'
 ----
 oc apply -k manifests/02-disconnected/mirror-host
 ----
++
+Expected: the mirror-host PVC, pod, and namespace resources report `created`.
 
 . Because the pod cannot reach the OAuth server directly, use a token obtained from outside the `image-download` pod:
 +
@@ -104,6 +116,8 @@ echo $TOKEN
 oc rollout status deploy/image-download -n rhoai-deploy --timeout=120s
 oc rsh -n rhoai-deploy deploy/image-download
 ----
++
+Expected: `deployment "image-download" successfully rolled out`, then a shell prompt inside the pod.
 
 . Set the working directory and install oc-mirror v2:
 +
@@ -136,6 +150,8 @@ oc login --token=<paste-token-here> \
   --server={openshift_api_server_url} \
   --insecure-skip-tls-verify=true
 ----
++
+Expected: the cluster confirms `Logged into "<server>" as ...` for the token user.
 
 . Provide registry credentials. oc-mirror reads `$HOME/.docker/config.json`; seed it from the
   cluster's own pull secret so pulls from `registry.redhat.io` are authenticated:
@@ -276,6 +292,8 @@ curl -sSk -X POST "${QUAY_URL}/api/v1/user/initialize" \
   -d '{"username":"quayadmin","password":"quayadmin","email":"quayadmin@example.com","access_token":true}'
 ----
 +
+Expected: a JSON response containing an `access_token` field.
++
 Save the `access_token` from the response — you need it for the next step.
 
 . Create a `mirror` organization to hold the mirrored images:
@@ -292,6 +310,8 @@ curl -sSk -X POST "${QUAY_URL}/api/v1/organization/" \
   -H "Content-Type: application/json" \
   -d '{"name":"mirror","email":"mirror@example.com"}'
 ----
+
+Expected: a JSON response confirming the `mirror` organization was created.
 
 === Verify
 
@@ -420,13 +440,13 @@ reference copies are provided under `manifests/02-disconnected/catalog/`.
 The **`CatalogSource`** tells OLM where to find the operator index image — your mirror registry
 instead of `registry.redhat.io`:
 
-Inspect the reference manifest:
-
+. Inspect the CatalogSource reference manifest:
++
 [source,bash,role="execute"]
 ----
 cat manifests/02-disconnected/catalog/catalogsource.yaml
 ----
-
++
 [source,yaml]
 ----
 apiVersion: operators.coreos.com/v1alpha1
@@ -449,16 +469,15 @@ spec:
     uses the exact digest it pushed.
 <3> The catalog pod re-polls the registry image every 10 minutes for updated operator bundles.
 
-The **`ImageDigestMirrorSet`** (IDMS) redirects image pulls cluster-wide — any pod requesting
-an image from `registry.redhat.io` or `quay.io` transparently pulls from your mirror instead:
-
-Inspect the reference manifest:
-
+. Inspect the ImageDigestMirrorSet (IDMS) reference manifest. The IDMS redirects image pulls
+  cluster-wide — any pod requesting an image from `registry.redhat.io` or `quay.io` transparently
+  pulls from your mirror instead:
++
 [source,bash,role="execute"]
 ----
 cat manifests/02-disconnected/catalog/idms.yaml
 ----
-
++
 [source,yaml]
 ----
 apiVersion: config.openshift.io/v1
@@ -477,11 +496,11 @@ spec:
 <1> Every image pull that would normally go to `registry.redhat.io` is redirected.
 <2> The mirror registry URL. oc-mirror's generated version includes the full namespace path
     (e.g., `registry-quay-quay.apps.cluster.example.com/mirror`).
-
++
 NOTE: oc-mirror may also generate an `ImageTagMirrorSet` (ITMS) for tag-referenced images.
 The IDMS handles digest-referenced images; the ITMS handles tag-referenced ones. Apply both
 if generated.
-
++
 WARNING: *Do not run these commands in this lab.* The Quay mirror registry is hosted on the same
 cluster. Applying the IDMS would redirect all image pulls to Quay — if Quay restarts, the cluster
 cannot pull images to recover it (chicken-and-egg). In a production disconnected environment the
@@ -489,27 +508,33 @@ mirror registry runs on separate infrastructure and these steps would be safe to
 
 . Apply the pre-built CatalogSource and mirror resources:
 +
-[source,bash]
+[source,bash,role="execute"]
 ----
 oc apply -k manifests/02-disconnected/catalog
 ----
++
+Expected: the CatalogSource and mirror resources report `created`/`configured`.
 
 . Confirm the catalog source becomes `READY`:
 +
-[source,bash]
+[source,bash,role="execute"]
 ----
 oc get catalogsource -n openshift-marketplace
 ----
++
+Expected: the local catalog shows `READY` with a recent `LAST UPDATED`.
 
 === Verify
 
 * The {rhoai-short} operator is installable from the local catalog (visible in OperatorHub), with no
   external image pulls:
 +
-[source,bash]
+[source,bash,role="execute"]
 ----
 oc get packagemanifest | grep rhods-operator
 ----
++
+Expected: a line matching `rhods-operator` with its catalog source.
 
 With the catalog serving images locally, the install steps are identical to the connected path.
 
@@ -521,7 +546,7 @@ production air-gapped cluster with a separate mirror registry.
 
 . Install the operator from the local catalog and create the DSC:
 +
-[source,bash]
+[source,bash,role="execute"]
 ----
 oc apply -k manifests/01-install/operator
 oc wait csv -n redhat-ods-operator -l operators.coreos.com/rhods-operator.redhat-ods-operator \
@@ -529,15 +554,19 @@ oc wait csv -n redhat-ods-operator -l operators.coreos.com/rhods-operator.redhat
 oc apply -k manifests/01-install/dsc
 oc wait datasciencecluster/default-dsc --for=condition=Ready --timeout=20m
 ----
++
+Expected: the CSV reaches `Succeeded` and the DSC condition becomes `Ready`.
 
 === Verify
 
 * The DSC reports a `Ready` phase with no external pulls:
 +
-[source,bash]
+[source,bash,role="execute"]
 ----
 oc get datasciencecluster default-dsc -o jsonpath='{.status.phase}{"\n"}'
 ----
++
+Expected: `Succeeded`.
 
 NOTE: If you completed Exercises 1–6 on a production disconnected cluster, you have reached the
 same "RHOAI Ready" state as Module 1. Exercise 7 describes a lighter-weight alternative for lab
@@ -556,6 +585,8 @@ For lab environments, a Quay.io transparent proxy pull-through cache avoids a fu
 ----
 oc apply -f manifests/02-disconnected/proxy-cache-idms.yaml
 ----
++
+Expected: the `ImageDigestMirrorSet` reports `created`.
 
 === Verify
 

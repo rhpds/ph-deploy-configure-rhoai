@@ -3,6 +3,11 @@
 In this activity you will log into {ocp}, open a terminal, and clone the workshop manifests so the
 `oc apply` commands in later modules resolve correctly.
 
+== Prerequisites
+
+* A provisioned lab environment with the *OpenShift Console* and *Terminal* tabs available
+* Cluster-admin credentials supplied with your lab environment
+
 == Log in to OpenShift (web console)
 
 . Open the OpenShift console:
@@ -11,9 +16,9 @@ In this activity you will log into {ocp}, open a terminal, and clone the worksho
 
 . Log in with your lab credentials:
 +
-*Username:* `{openshift_cluster_admin_username}`
+*Username:* {user}
 +
-*Password:* `{openshift_cluster_admin_password}`
+*Password:* {password}
 
 == Log in from the terminal
 
@@ -23,12 +28,12 @@ In this activity you will log into {ocp}, open a terminal, and clone the worksho
 +
 [source,bash,role="execute",subs="attributes"]
 ----
-oc login {openshift_api_server_url} -u {openshift_cluster_admin_username} -p {openshift_cluster_admin_password} --insecure-skip-tls-verify=true
+oc login {openshift_api_server_url} -u {user} -p {password} --insecure-skip-tls-verify=true
 ----
 
 === Verify
 
-* `oc whoami` returns `{openshift_cluster_admin_username}`:
+* `oc whoami` returns {user}:
 +
 [source,bash,role="execute"]
 ----
