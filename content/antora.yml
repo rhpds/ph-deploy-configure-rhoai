@@ -25,10 +25,12 @@ asciidoc:
     # --- Lab identity ---
     lab_name: "RHOAI 3.5 Deploy & Configure"
     guid: abc123
-    user: user1
+    user: admin
     password: "%password%"
     project_name: rhoai-deploy
     # --- Cluster coordinates (overridden per environment) ---
+    openshift_cluster_admin_username: admin
+    openshift_cluster_admin_password: "%password%"
     openshift_api_server_url: "https://api.cluster.example.com:6443"
     openshift_console_url: https://console-openshift-console.apps.cluster.example.com
     openshift_cluster_ingress_domain: apps.cluster.example.com
