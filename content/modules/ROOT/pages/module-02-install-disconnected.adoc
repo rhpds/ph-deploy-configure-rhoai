@@ -20,7 +20,7 @@ Run whichever path matches your target environment; you do not need both.
 *Allow 2-4+ hours.* The mirror-to-disk and disk-to-registry phases download and process ~314 GB of
 operator images and tar archives. The workflow is functionally complete — every step runs
 end-to-end — but the I/O-bound phases (tar creation, registry push) take significant wall-clock
-time. Plan accordingly.
+time. Your environment may not have enough storage to complete all of these steps. Plan accordingly.
 ====
 
 [IMPORTANT]
