@@ -141,6 +141,8 @@ For the *internal* (in-cluster) endpoint instead, use `.status.address.url` — 
 in-cluster terminal, not the bastion.
 ====
 +
+The successful request returns the model's completion:
++
 image::07-query-cpu-model.png[Query CPU Model,link=self,window=blank,width=800]
 
 [NOTE]

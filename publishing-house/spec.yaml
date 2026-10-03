@@ -8,7 +8,7 @@ project:
   intake_type: migration
   automation_type: both
   description: "RHOAI Deploy & Configure Workshop \u2014 A CPU-completable, hands-on lab that walks participants through installing,\
-    \ configuring, serving (vLLM), governing (MaaS), scaling (llm-d + KEDA), and observing Red Hat OpenShift AI on OCP 4.19+.\
+    \ configuring, serving (vLLM), governing (MaaS), scaling (llm-d + KEDA), and observing Red Hat OpenShift AI on OCP 4.20+.\
     \ Supports RHOAI 3.4 and 3.5 from a single codebase using conditional content gating."
   jira_ticket: RHDPCD-1978
   workflow_id: 742e608c-f4a7-4e64-8b83-28692a935018

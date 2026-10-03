@@ -62,7 +62,7 @@ oc apply -k manifests/06-llmd/operators
 +
 [source,bash,role="execute"]
 ----
-oc wait --for=jsonpath='{.status.phase}'=Succeeded \
+oc wait --for=create --for=jsonpath='{.status.phase}'=Succeeded \
   csv -l operators.coreos.com/openshift-custom-metrics-autoscaler-operator.openshift-keda= \
   -n openshift-keda --timeout=5m
 ----
@@ -163,6 +163,8 @@ spec:
 oc apply -k manifests/06-llmd/service -n {project_name}
 oc get pods -n {project_name} -w
 ----
++
+In the RHOAI dashboard, you can see the model deployed.
 +
 image::28-llmd-inference-model.png[LLM Inference Model Deployment,link=self,window=blank,width=800]
 
@@ -278,6 +280,8 @@ spec:
 oc apply -k manifests/06-llmd/maas-subscription
 ----
 +
+In the RHOAI dashboard, you can see the MaaS subscription created.
++
 image::30-llmd-maas-subscription.png[LLM Inference MaaS Subscription,link=self,window=blank,width=800]
 
 [NOTE]
@@ -387,6 +391,10 @@ oc get hpa -n {project_name}
 +
 image::31-llmd-scaled-object.png[LLM Inference KEDA ScaledObject,link=self,window=blank,width=800]
 +
+In the console, you can see the HPA created.
++
+image::32-llmd-scale-hpa.png[KEDA Scale HPA,link=self,window=blank,width=800]
+
 [NOTE]
 ====
 *Give the HPA a minute to populate.* The `ScaledObject` becomes `READY=True` almost immediately, but

@@ -48,8 +48,10 @@ endif::[]
 ----
 oc wait csv -n redhat-ods-operator \
   -l operators.coreos.com/rhods-operator.redhat-ods-operator \
-  --for=jsonpath='{.status.phase}'=Succeeded --timeout=15m
+  --for=create --for=jsonpath='{.status.phase}'=Succeeded --timeout=15m
 ----
++
+In the OpenShift console, you can see the Operator installed.
 +
 image::01-install-rhoai-operator.png[RHOAI Operator Installation,link=self,window=blank,width=800]
 
@@ -218,6 +220,8 @@ endif::[]
 oc wait datasciencecluster/default-dsc --for=condition=Ready --timeout=15m
 ----
 +
+In the OpenShift console, use `Search` to find `DataScienceClusters` and confirm `default-dsc` reports `Ready`.
++
 image::02-dsc-ready.png[DataScienceCluster Ready,link=self,window=blank,width=800]
 
 === Verify
@@ -233,16 +237,18 @@ With the cluster ready, let's open the dashboard so you can see {rhoai-short} fr
 
 == Exercise 3: Open the RHOAI dashboard
 
-. Get the dashboard route and open it in a browser:
+. Login to the integrated RHOAI dashboard in the showroom tab:
 +
 [source,bash,role="execute"]
 ----
 oc get route rhods-dashboard -n redhat-ods-applications -o jsonpath='https://{.spec.host}{"\n"}'
 ----
 
-. Log in with {openshift_cluster_admin_username} / {openshift_cluster_admin_password} and confirm the {rhoai-short} home page loads.
+. Use the credentials provided in the workshop getting connected guide to login to the {rhoai-short} home page.
 
 === Verify
+
+The {rhoai-short} home page loads:
 
 image::03-rhoai-dashboard.png[RHOAI Dashboard Home page,link=self,window=blank,width=800]
 
@@ -270,10 +276,13 @@ oc get ns redhat-ods-operator redhat-ods-applications rhods-notebooks
 For an IDE view of the workshop manifests, deploy a Code Server workbench in {rhoai-short}.
 You can also clone the repo locally — this step is purely for convenience.
 
-. In the {rhoai-short} dashboard, navigate to *Data Science Projects* and select (or create) the
-  `{project_name}` project.
+. In the {rhoai-short} dashboard, navigate to *Projects*
 
-. Click *Create workbench* and fill in:
+. Create a new project called `code-server` (or just use the `{project_name}` project if it already exists).
++
+image::38-create-code-server-project.png[Create Code Server project,link=self,window=blank,width=700]
+
+. Click *Create workbench* and fill in the following details (the other fields can be left as default):
 +
 [cols="1,2",options="header"]
 |===
@@ -284,12 +293,6 @@ You can also clone the repo locally — this step is purely for convenience.
 
 |Image selection
 |Code Server
-
-|Container size
-|Small
-
-|Accelerator
-|None
 |===
 +
 image::36-code-server-workbench.png[Create Code Server workbench,link=self,window=blank,width=700]
@@ -297,7 +300,9 @@ image::36-code-server-workbench.png[Create Code Server workbench,link=self,windo
 . Click **Create workbench** and wait for the workbench to reach `Running` status. Click the
   workbench link to open Code Server in a new tab.
 
-. Use the git clone button to clone the workshop repo:
+. Click the `mark done` on the welcome pane in the workbench to close it, then use the `Clone Git Repository` link under `Start` to clone the workshop repo:
++
+image::39-code-server-git-clone.png[Code Server git clone,link=self,window=blank,width=700]
 +
 [source,text]
 ----

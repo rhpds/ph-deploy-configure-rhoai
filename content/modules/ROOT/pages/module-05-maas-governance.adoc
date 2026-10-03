@@ -127,6 +127,8 @@ oc wait --for=jsonpath='{.status.phase}'=Succeeded \
   -n cert-manager-operator --timeout=5m
 ----
 +
+In the OpenShift console, you can see the operators installed.
++
 image::10-rhcl-operator.png[RHCL Operator,link=self,window=blank,width=800]
 
 . Register Kuadrant now that its CRD exists. The `Kuadrant` CR bootstraps Authorino
@@ -573,7 +575,7 @@ oc get monitoring default-monitoring -o jsonpath='{.status.conditions[?(@.type==
 oc get monitoringstack data-science-monitoringstack -n redhat-ods-monitoring
 ----
 * After a browser refresh, the {rhoai-short} dashboard shows the *Models as a Service* view (AI
-  asset endpoints, API keys) and an *Observe & monitor -> Dashboard (Tech Preview)* nav item.
+  asset endpoints, API keys) and an *Observe & monitor -> Dashboard* nav item.
 ifeval::["{rhoai_version}" == "3.4"]
 * On the *Observe & monitor -> Dashboard*, the *Cluster* tab renders live data (System health,
   Memory/CPU utilization, Inbound traffic) instead of

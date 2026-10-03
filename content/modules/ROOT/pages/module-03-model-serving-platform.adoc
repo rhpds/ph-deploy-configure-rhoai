@@ -7,7 +7,8 @@
 With {rhoai-short} installed, the model-serving platform must be prepared before models can be
 deployed. In this module you enable KServe single-model serving and make the pre-installed vLLM CPU
 runtime available in your project. Model weights are pulled from public OCI modelcar images, so no
-object storage is required — configuring an object-storage connection is shown as an optional step.
+object storage is required — configuring an object-storage connection is skipped in this workshop
+and included for reference only.
 
 == Learning objectives
 
@@ -15,7 +16,7 @@ By the end of this module you will be able to:
 
 * Enable model serving (KServe single-model serving) for projects
 * Make the pre-installed vLLM CPU (x86) `ServingRuntime` available in your project
-* (Optional) Create an S3/URI connection Secret with the correct connection-type annotation
+* (Skipped for this workshop) Create an S3/URI connection Secret with the correct connection-type annotation
 * Set a default cluster-wide deployment strategy
 
 == Prerequisites
@@ -119,7 +120,10 @@ oc annotate servingruntime vllm-cpu-x86-runtime -n {project_name} \
 oc get servingruntime vllm-cpu-x86-runtime -n {project_name}
 ----
 
-== Exercise 4 (Optional): Create a storage connection Secret
+== Exercise 4 (Skipped for this workshop): Create a storage connection Secret
+
+For this workshop, we will skip Exercise 4 - the creation of a storage connection Secret. 
+This is a common task when using RHOAI, so it is included for reference only.
 
 [NOTE]
 ====
@@ -152,11 +156,11 @@ oc get secret aws-connection-models -n {project_name} \
   -o jsonpath='{.metadata.annotations.opendatahub\.io/connection-type-protocol}{"\n"}'
 ----
 
-== Exercise 5 (Optional): Set a default deployment strategy
+== Exercise 5: Verify the default deployment strategy
 
 . On the same *Settings -> Cluster settings -> General settings* page, under *Default deployment
-  strategy*, choose a cluster-wide default for KServe deployments (*Rolling update* or *Recreate*)
-  to match your update-availability requirements.
+  strategy*, verify that the cluster-wide default for KServe deployments is set to *Rolling update*
+  (this is the default setting).
 +
 image::05-default-deployment-settings.png[Default Deployment Strategy,link=self,window=blank,width=800]
 

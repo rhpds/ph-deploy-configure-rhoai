@@ -1,6 +1,6 @@
 # ph-deploy-configure-rhoai
 
-RHOAI Deploy & Configure Workshop — A CPU-completable, hands-on lab that walks participants through installing, configuring, serving (vLLM), governing (MaaS), scaling (llm-d + KEDA), and observing Red Hat OpenShift AI on OCP 4.19+. Supports RHOAI 3.4 and 3.5 from a single codebase using conditional content gating.
+RHOAI Deploy & Configure Workshop — A CPU-completable, hands-on lab that walks participants through installing, configuring, serving (vLLM), governing (MaaS), scaling (llm-d + KEDA), and observing Red Hat OpenShift AI on OCP 4.20+. Supports RHOAI 3.4 and 3.5 from a single codebase using conditional content gating.
 
 **Owner:** eformat
 **Migrated from:** https://github.com/rhai-code/zt-rhoai-deploy-configure-showroom

@@ -550,7 +550,7 @@ production air-gapped cluster with a separate mirror registry.
 ----
 oc apply -k manifests/01-install/operator
 oc wait csv -n redhat-ods-operator -l operators.coreos.com/rhods-operator.redhat-ods-operator \
-  --for=jsonpath='{.status.phase}'=Succeeded --timeout=15m
+  --for=create --for=jsonpath='{.status.phase}'=Succeeded --timeout=15m
 oc apply -k manifests/01-install/dsc
 oc wait datasciencecluster/default-dsc --for=condition=Ready --timeout=20m
 ----

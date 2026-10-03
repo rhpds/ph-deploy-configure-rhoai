@@ -18,7 +18,7 @@ asciidoc:
     maas: "Models-as-a-Service"
     rhcl: "Red Hat Connectivity Link"
     rhoai_version: "3.5"
-    ocp_version: "4.19-4.22"
+    ocp_version: "4.20-4.22"
     # --- Version-specific MaaS values (override for 3.5 builds) ---
     maas_api_namespace: "redhat-ods-applications"
     dsc_maas_condition: "ModelsAsServiceReady"
@@ -41,7 +41,7 @@ asciidoc:
     registry_url: registry.apps.cluster.example.com
     metrics_console_url: https://console-openshift-console.apps.cluster.example.com/monitoring
     # --- Version-specific labels ---
-    vllm_cpu_runtime_label: "vLLM CPU (x86) ServingRuntime for KServe - Tech Preview"
+    vllm_cpu_runtime_label: "vLLM CPU (x86) ServingRuntime for KServe"
     # --- Models ---
     cpu_model: "Qwen2.5-0.5B-Instruct"
     # --- Source repo for manifests ---
