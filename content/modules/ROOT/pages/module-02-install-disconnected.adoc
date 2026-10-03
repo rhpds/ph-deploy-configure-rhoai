@@ -4,33 +4,29 @@
 :toclevels: 1
 :icons: font
 
+[IMPORTANT]
+====
+We include this module for **reference only** due to time and storage constraints.
+You do not need to complete this module to complete the workshop. 
+We will use the connected installation path instead.
+This module reaches the same "RHOAI Ready" end state as xref:module-01-install-connected.adoc[Module 1].
+====
+
 Many production clusters run air-gapped behind a firewall. In this module you install {rhoai}
 {rhoai_version} without direct internet access by mirroring operator images to a local registry and
 installing from a local `CatalogSource`. A Quay.io proxy pull-through cache is offered as a
 lighter-weight alternative.
 
-[NOTE]
-====
-This module reaches the same "RHOAI Ready" end state as xref:module-01-install-connected.adoc[Module 1].
-Run whichever path matches your target environment; you do not need both.
-====
-
-[IMPORTANT]
-====
 *Allow 2-4+ hours.* The mirror-to-disk and disk-to-registry phases download and process ~314 GB of
 operator images and tar archives. The workflow is functionally complete — every step runs
 end-to-end — but the I/O-bound phases (tar creation, registry push) take significant wall-clock
-time. Your environment may not have enough storage to complete all of these steps. Plan accordingly.
-====
+time. Plan accordingly.
 
-[IMPORTANT]
-====
 *Scope: RHOAI only.* This module mirrors only {rhoai-short} — the `rhods-operator` and its dependent
 operator images — onto a cluster where OpenShift is *already installed* disconnected. It does *not*
 mirror the OpenShift platform release payload. Mirroring all of OpenShift for a from-scratch
-air-gapped install is a larger exercise; refer to the references at the end of this module for the
+air-gapped install is a larger exercise often taking multiple days to complete; refer to the references at the end of this module for the
 complete disconnected OpenShift workflow.
-====
 
 == Prerequisites
 
