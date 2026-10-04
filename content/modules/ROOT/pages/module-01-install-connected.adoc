@@ -245,7 +245,7 @@ With the cluster ready, let's open the dashboard so you can see {rhoai-short} fr
 
 == Exercise 3: Open the RHOAI dashboard
 
-. Login to the integrated RHOAI dashboard in the showroom tab:
+. Login to the integrated RHOAI dashboard in the showroom tab on the right panel (you may need to refresh the page). You can also get the dashboard route and open it in a browser (optional):
 +
 [source,bash,role="execute"]
 ----
@@ -282,11 +282,11 @@ oc get ns redhat-ods-operator redhat-ods-applications rhods-notebooks
 == Exercise 5 (Optional): Code Server workbench
 
 For an IDE view of the workshop manifests, deploy a Code Server workbench in {rhoai-short}.
-You can also clone the repo locally — this step is purely for convenience.
+We have already cloned the repo locally into the Terminal tab — this step is purely for convenience if you want to use a code editor IDE.
 
 . In the {rhoai-short} dashboard, navigate to *Projects*
 
-. Create a new project called `code-server` (or just use the `{project_name}` project if it already exists).
+. `Create` a new project called `code-server` (or just use the `{project_name}` project if it already exists).
 +
 image::38-create-code-server-project.png[Create Code Server project,link=self,window=blank,width=700]
 
@@ -305,22 +305,32 @@ image::38-create-code-server-project.png[Create Code Server project,link=self,wi
 +
 image::36-code-server-workbench.png[Create Code Server workbench,link=self,window=blank,width=700]
 
-. Click **Create workbench** and wait for the workbench to reach `Running` status. Click the
+. Click **Create workbench** and wait for the workbench to reach `Running` status. It may take a minute or two to download the workbench image. Click the
   workbench link to open Code Server in a new tab.
-
-. Click the `mark done` on the welcome pane in the workbench to close it, then use the `Clone Git Repository` link under `Start` to clone the workshop repo:
 +
-image::39-code-server-git-clone.png[Code Server git clone,link=self,window=blank,width=700]
+image::40-code-server-ready.png[Code Server ready,link=self,window=blank,width=700]
+
+. Click the `Mark Done` link on the welcome pane in the workbench to close it, then use the `Clone Git Repository` link under `Start` to clone the workshop repo `URL`:
 +
 [source,text]
 ----
 https://github.com/rhpds/ph-deploy-configure-rhoai
 ----
 +
-image::37-code-server-git-clone.png[Code Server with cloned repo,link=self,window=blank,width=700]
+image::39-code-server-git-clone.png[Code Server git clone,link=self,window=blank,width=700]
+
+. Use the default repository destination `/opt/app-root/src` and click **Select as Repository Destination**.
++
+image::41-code-server-git-clone-destination.png[Code Server git clone destination,link=self,window=blank,width=700]
+
+. Git clone should run and you will be prompted to open the repository. Click **Open**.
++
+image::42-code-server-git-clone-open.png[Code Server git clone open,link=self,window=blank,width=700]
 
 You now have a full IDE with the manifest tree, YAML syntax highlighting, and an integrated
 terminal — handy for browsing the Kustomize overlays and Helm charts used throughout the workshop.
++
+image::37-code-server-git-clone.png[Code Server with cloned repo,link=self,window=blank,width=700]
 
 == Module summary
 
@@ -344,9 +354,11 @@ If your cluster is air-gapped, follow xref:module-02-install-disconnected.adoc[M
 
 * Red Hat product documentation:
 ** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/installing_and_uninstalling_openshift_ai_self-managed/index[Installing and uninstalling OpenShift AI Self-Managed]
-* Reference code:
+* Reference code for the RHOAI operator:
 ** https://github.com/opendatahub-io/opendatahub-operator[opendatahub-io/opendatahub-operator]
 
-This satisfies the "RHOAI Ready" precondition. You can reach the same end state through the
-disconnected path in xref:module-02-install-disconnected.adoc[Module 2], or skip ahead to
-xref:module-03-model-serving-platform.adoc[Module 3] to configure model serving.
+This satisfies the "RHOAI Ready" precondition. 
+
+You can reach the same end state through the disconnected path in xref:module-02-install-disconnected.adoc[Module 2].
+
+Next, follow xref:module-03-model-serving-platform.adoc[Module 3] to configure model serving.
