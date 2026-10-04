@@ -62,9 +62,12 @@ oc apply -k manifests/06-llmd/operators
 +
 [source,bash,role="execute"]
 ----
-oc wait --for=create --for=jsonpath='{.status.phase}'=Succeeded \
-  csv -l operators.coreos.com/openshift-custom-metrics-autoscaler-operator.openshift-keda= \
-  -n openshift-keda --timeout=5m
+oc wait csv -n openshift-keda \
+  -l operators.coreos.com/openshift-custom-metrics-autoscaler-operator.openshift-keda= \
+  --for=create --timeout=5m
+oc wait csv -n openshift-keda \
+  -l operators.coreos.com/openshift-custom-metrics-autoscaler-operator.openshift-keda= \
+  --for=jsonpath='{.status.phase}'=Succeeded --timeout=5m
 ----
 
 . Activate KEDA by creating the `KedaController` (its Custom Resource Definition (CRD) exists only after the CSV above is

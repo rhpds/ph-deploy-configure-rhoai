@@ -48,8 +48,16 @@ endif::[]
 ----
 oc wait csv -n redhat-ods-operator \
   -l operators.coreos.com/rhods-operator.redhat-ods-operator \
-  --for=create --for=jsonpath='{.status.phase}'=Succeeded --timeout=15m
+  --for=create --timeout=5m
+oc wait csv -n redhat-ods-operator \
+  -l operators.coreos.com/rhods-operator.redhat-ods-operator \
+  --for=jsonpath='{.status.phase}'=Succeeded --timeout=15m
 ----
++
+NOTE: The CSV does not exist until OLM creates it moments after the subscription,
+and `oc wait` only polls resources that already exist — hence the two waits.
+`--for` accepts a single condition, so the create and jsonpath checks cannot be
+combined into one command. Requires `oc` 4.20+.
 +
 In the OpenShift console, you can see the Operator installed.
 +

@@ -10,7 +10,7 @@ In this activity you will log into {ocp}, open a terminal, and clone the worksho
 
 == Log in to OpenShift (web console)
 
-. Open the OpenShift console:
+. Open the OpenShift console - use the *OpenShift Console* tab (or the link in the right panel).
 +
 {openshift_console_url}
 
