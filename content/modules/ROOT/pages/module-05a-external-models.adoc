@@ -63,14 +63,7 @@ An external model in {rhoai-short} {rhoai_version} requires six resources:
 |Sets token rate limits and subscription priority.
 |===
 
-NOTE: IPP (Inference Payload Processor) is deployed automatically into `openshift-ingress` by
-{rhoai-short} {rhoai_version}. It translates OpenAI chat format to each provider's native wire format
-before forwarding to the upstream endpoint.
-
-[NOTE]
-.Two ways to author an external model
-====
-There are two CRD layers you can author against:
+There are two ways to author an external model. There are two CRD layers you can author against:
 
 * *High-level* `maas.opendatahub.io/ExternalModel` — a compact CR (`provider`, `endpoint`,
   `targetModel`, `credentialRef`). The MaaS controller expands it into the low-level
@@ -83,12 +76,13 @@ There are two CRD layers you can author against:
 *Vertex AI needs the low-level form.* Its request path is a template —
 `/v1/projects/{project}/locations/{location}/endpoints/{endpoint}/chat/completions` — whose
 placeholders resolve from the provider `config`. The high-level `ExternalModel` CRD has no `config`
-field, so the placeholders would stay unresolved and the model would fail to reconcile. The chart
-detects a `config:` block on a provider and emits the low-level pair for it instead
-(`manifests/05-maas/llm-katan-simulator/templates/external-models.yaml`). `MaaSModelRef` resolves
-by `kind: ExternalModel` either way, so governance (subscription, auth policy, rate limits) is
+field, so the placeholders would stay unresolved and the model would fail to reconcile.
+`MaaSModelRef` resolves by `kind: ExternalModel` either way, so governance (subscription, auth policy, rate limits) is
 identical for both layers.
-====
+
+NOTE: IPP (Inference Payload Processor) is deployed automatically into `openshift-ingress` by
+{rhoai-short} {rhoai_version}. It translates OpenAI chat format to each provider's native wire format
+before forwarding to the upstream endpoint.
 
 endif::[]
 
@@ -296,10 +290,7 @@ done
 ====
 This step is not needed for `sim-vertex-openai` — it is authored directly as a low-level
 `ExternalProvider` with `endpoint: sim.simulator` in the chart, so it already uses the
-working TLS path. This is a platform bug fixed by
-`models-as-a-service` PR #1417 (see *Known caveats* below). Once that fix ships, the
-migrated ExternalProviders will inherit the correct endpoint and this patch becomes
-unnecessary.
+working TLS path.
 ====
 
 . Wait for the simulator to start. First boot installs llm-katan from PyPI (~60 s):
@@ -310,7 +301,7 @@ oc rollout status deployment/sim -n llm-katan --timeout=180s
 oc logs -n llm-katan deploy/sim --tail=5
 ----
 +
-Expected last log line: `LLM Katan ready on 0.0.0.0:8443`
+Expected last log line: `LLM Katan ready on 0.0.0.0:8443` or `GET /health HTTP/1.1 200 OK`
 
 === Verify
 
@@ -333,7 +324,7 @@ curl -sSk "${HOST}/maas-api/v1/models" \
 ----
 +
 You should see `sim-openai`, `sim-anthropic`, `sim-azure-openai`, `sim-bedrock`, and
-`sim-vertex-openai` listed.
+`sim-vertex-openai` listed. In RHOAI dashboard you should see the models in the *AI asset endpoints* tab.
 +
 image::22-maas-llm-katan-models.png[MaaS External Models,link=self,window=blank,width=800]
 
@@ -397,8 +388,7 @@ Each provider echoes back in its own API's native response schema. OpenAI-format
 providers (`sim-openai`, `sim-azure-openai`, `sim-bedrock`) return the text under
 `.choices[0].message.content`, while `sim-anthropic` uses the Anthropic Messages
 shape (`.content[0].text`). The `jq` filter above handles both, and reads the body
-raw first (`fromjson?`) so a non-JSON error body prints as text instead of failing
-the loop.
+raw first (`fromjson?`) so a non-JSON error body prints as text.
 ====
 
 === Verify
@@ -407,7 +397,7 @@ the loop.
 * All five simulator models appear in *Gen AI studio -> AI asset endpoints* in the {rhoai-short}
   dashboard.
 
-. Open the llm-katan live dashboard to see the request/response detail for every call that
+. Open the llm-katan live dashboard in your browser to see the request/response detail for every call that
   flowed through the simulator:
 +
 [source,bash,role="execute"]
@@ -415,6 +405,8 @@ the loop.
 export CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
 echo "https://sim-dashboard-llm-katan.${CLUSTER_DOMAIN}/dashboard"
 ----
++
+You will need to rerun the curl loop above to see the request/response detail in the dashboard.
 +
 The dashboard shows per-provider request counts, token consumption, response times, and a
 live event stream (via WebSocket) of every request the simulator processes. It updates in
@@ -455,20 +447,18 @@ oc apply -f manifests/05-maas/perses-dashboard-external-models.yaml
 
 . In the {rhoai-short} dashboard go to *Observe & monitor → Dashboard*.
   A new *External Models* tab appears alongside Cluster, Models, LLM Traffic, etc.
++
+image::49-llm-katan-external-model-dashboard.png[MaaS LLM Katan External Models Dashboard,link=self,window=blank,width=800]
 
-. Fire the Exercise 2 curl loop to generate some traffic, then refresh the
-  dashboard. You should see:
+. Fire the Exercise 2 curl loop to generate some traffic. You should see:
 ** *Lifetime requests* — total requests since the simulator started (persisted across pod restarts)
 ** *Requests/s by provider* — per-provider breakdown (`openai`, `anthropic`, `azure_openai`, `vertexai (openai-compat)`, `bedrock`)
 ** *Token throughput* — prompt and completion token rates
 ** *Avg response time* — rolling average over the last 1000 requests
 
-[NOTE]
-====
 The token counters in this dashboard reset on pod restart. For durable token accounting
 (which survives restarts and tracks by API key) use the *Usage* tab, which draws from
 the MaaS gateway's Limitador subscription counters.
-====
 
 [NOTE]
 .Why only four provider series?
@@ -488,19 +478,6 @@ handler. In practice this means the `openai` series represents both `sim-openai`
 === Known caveats
 
 [NOTE]
-.Intermittent HTTP 500 on a loaded cluster
-====
-On a heavily loaded single-node cluster you may see an occasional `500` (or a non-JSON
-error body) from an otherwise-healthy provider. This is a known upstream Envoy
-race in the WASM remote-code fetch used by the gateway
-(link:https://github.com/envoyproxy/envoy/pull/46674[envoyproxy/envoy#46674]) — the
-gateway log shows `Wasm remote code fetch is unstable and may cause a crash`. It is
-*not* a simulator or configuration problem. Re-run the call; it succeeds on retry. The
-verify loop above reads the body raw first so a transient error prints as text rather
-than aborting the loop.
-====
-
-[NOTE]
 .External models appear in Usage only — not in LLM Traffic / LLM Performance / Models
 ====
 In the Observability dashboard (*Observe & monitor → Dashboard*), the sim models appear
@@ -510,26 +487,6 @@ KServe and vLLM pod metrics (`kserve_vllm:*`, `inference_model_request_*`) which
 for locally-served `LLMInferenceService` workloads with a vLLM sidecar. The sim models are
 an external echo server with no vLLM — so no pod metrics are scraped. This is expected
 behaviour: *Usage* is the right place to observe external model consumption.
-====
-
-[NOTE]
-.Duplicate HTTPRoutes for the high-level providers (known platform issue)
-====
-On this {rhoai-short} {rhoai_version} build, `oc get httproute -n llm-katan` shows two
-routes per high-level provider — `maas-sim-<name>` and `sim-<name>` — both matching
-`/llm-katan/sim-<name>` on the same gateway. On a 3.4->3.5 migration the maas
-`ExternalModel` controller still creates its own legacy `maas-*` routing while the IPP
-controller *also* creates routing from the migrated inference `ExternalModel`. The
-`maas-*` copy routes to the raw service host (no skip-verify DestinationRule), so it is
-the non-working TLS path; the gateway deterministically resolves the path conflict to
-the working `sim-<name>` route, so calls still succeed.
-
-This is fixed upstream in `models-as-a-service` (link:https://github.com/opendatahub-io/models-as-a-service/pull/1417[PR #1417]),
-which tears down the `maas-*` children once the migrated inference route is ready. 
-Until that fix ships in your build, the duplicate is cosmetic clutter.
-The low-level provider (`sim-vertex-openai`) is authored directly
-against the inference CRDs, bypasses the legacy reconciler entirely, and already
-produces a single route.
 ====
 
 endif::[]
@@ -682,31 +639,29 @@ curl -sSk "${HOST}/llm-katan/sim-openai/v1/chat/completions" \
 
 endif::[]
 
-== Cleanup (Optional)
+== Module summary
 
-You do not need to do this - it is optional. 
+**What you accomplished:**
 
-To remove the simulator and all associated resources:
+* Deployed the llm-katan echo simulator in-cluster — a single lightweight pod that mimics OpenAI, Anthropic, Azure OpenAI, Bedrock, and Vertex AI, with no real provider API keys or external internet access
+* Published the simulator models through the MaaS catalog with `MaaSModelRef`, a `MaaSSubscription`, and a `MaaSAuthPolicy` — the same governance pattern as locally-served models in Module 5
+* Called every provider through the MaaS gateway with a single API key, in both body-based (model in the JSON body) and path-based (model in the URL) routing modes, and watched per-provider request counts and token consumption in the dashboards
 
-ifeval::["{rhoai_version}" == "3.5"]
-[source,bash,role="execute"]
-----
-# Delete ExternalModel CRs first — allows the controller to clean up HTTPRoutes and Services.
-oc delete externalmodel -n llm-katan -l app.kubernetes.io/instance=sim
-# Remove the remaining chart resources.
-helm template sim manifests/05-maas/llm-katan-simulator --skip-crds \
-  | oc delete --ignore-not-found -f -
-oc delete namespace llm-katan
-----
-endif::[]
+**Key takeaways:**
 
-ifeval::["{rhoai_version}" == "3.4"]
-[source,bash,role="execute"]
-----
-oc delete -f manifests/05-maas/external-model-34/maassubscription.yaml
-oc delete -f manifests/05-maas/external-model-34/maasauthpolicy.yaml
-oc delete -f manifests/05-maas/external-model-34/maasmodelref.yaml
-oc delete -f manifests/05-maas/external-model-34/external-model.yaml
-oc delete namespace llm-katan
-----
-endif::[]
+* External models get identical governance to locally-served models — API keys, subscriptions, rate limits, and telemetry are all enforced at the MaaS gateway regardless of where the model actually runs
+* Provider credentials travel in a labelled `Secret` that the payload processor injects into upstream requests — swapping the simulator for a real provider only changes the Secret value and the endpoint
+* In {rhoai-short} 3.5+ the high-level `maas.opendatahub.io` `ExternalModel` CR expands into the low-level provider/model resources automatically, but Vertex AI needs the low-level form — its templated request path requires provider `config` that the high-level CRD has no field for
+* External model consumption lands in the *Usage* tab of the Observability dashboard — the *LLM Traffic* and *LLM Performance* tabs query vLLM pod metrics that external models don't produce
+
+**Next steps:**
+
+To point this workflow at a real provider, replace the dummy Secret value with the real API key and update the endpoint — everything else (gateway, governance, telemetry) is unchanged. Continue to xref:module-06-llmd-scaling.adoc[Module 6] to add autoscaling: deploy `{cpu_model}` as an llm-d `LLMInferenceService` and configure a KEDA `ScaledObject` that scales on vLLM queue depth.
+
+== References
+
+* Red Hat product documentation:
+** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/govern_llm_access_with_models-as-a-service/index[Govern LLM access with Models-as-a-Service] (external models)
+* Reference code:
+** https://github.com/redhat-et/llm-katan[redhat-et/llm-katan] (echo simulator)
+** https://github.com/opendatahub-io/models-as-a-service[opendatahub-io/models-as-a-service] (upstream)

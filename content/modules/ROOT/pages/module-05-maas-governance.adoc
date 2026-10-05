@@ -1222,7 +1222,7 @@ This returns `True`.
 
 **Next steps:**
 
-Continue to xref:module-06-llmd-scaling.adoc[Module 6] to add autoscaling: deploy `{cpu_model}` as an llm-d `LLMInferenceService` and configure a KEDA `ScaledObject` that scales on vLLM queue depth.
+Continue to xref:module-05a-external-models.adoc[Module 5a] to publish external models.
 
 == References
 

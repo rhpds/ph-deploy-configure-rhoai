@@ -460,7 +460,7 @@ call times out, simply run it again — subsequent requests (and the load loop b
 +
 TIP: Use *sustained* load, not a burst. A one-shot burst fires all requests at once and drains before the ~30s UWM scrape and 15s KEDA poll can observe the queue — so the metric never crosses the threshold and nothing scales. The generator below holds a fixed number of requests in flight for the full duration, keeping `num_requests_waiting` above the `ScaledObject` threshold long enough for KEDA to react. With concurrency `16` against `--max-num-seqs=8`, roughly 8 requests stay queued → the deployment scales to 2 replicas (`ceil(8 / threshold 5)`). Raise concurrency to `-c 32` to push toward `maxReplicaCount` (4).
 
-. Generate sustained concurrent load through the gateway. The script reads `HOST`, `MODEL_PATH`, `MODEL_NAME`, and `API_KEY` from the environment you exported above (standard-library Python, no `pip install`):
+. Generate sustained concurrent load through the gateway. We run the load script with 32 workers for 300s. The script reads `HOST`, `MODEL_PATH`, `MODEL_NAME`, and `API_KEY` from the environment you exported above (standard-library Python, no `pip install`):
 +
 [source,bash,role="execute",subs="attributes"]
 ----
@@ -520,7 +520,7 @@ image::33-llmd-num-wait-requests.png[KEDA Number of Waiting Requests,link=self,w
 === Verify
 
 * The replica count increases under load (up to `maxReplicaCount`) and scales back down once the
-  queue drains.
+  queue drains. It may take 5-10 minutes for the replica count to decrease to one after the load is stopped.
 * You can point to the `kserve_vllm:num_requests_waiting` threshold crossing that triggered the
   scale-up.
 * `authorized_hits{subscription="qwen25-05b-llmd-demo"}` is non-zero — the scaling traffic was
