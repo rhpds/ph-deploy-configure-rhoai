@@ -305,7 +305,7 @@ image::38-create-code-server-project.png[Create Code Server project,link=self,wi
 +
 image::36-code-server-workbench.png[Create Code Server workbench,link=self,window=blank,width=700]
 
-. Click **Create workbench** and wait for the workbench to reach `Running` status. It may take a minute or two to download the workbench image. Click the
+. Click **Create workbench** and wait for the workbench to reach `Ready` status. It may take a minute or two to download the workbench image. Click the
   workbench link to open Code Server in a new tab.
 +
 image::40-code-server-ready.png[Code Server ready,link=self,window=blank,width=700]
