@@ -10,7 +10,7 @@ subscription and rate-limit layer over model serving, backed by an API gateway
 
 [IMPORTANT]
 ====
-*Technology Preview.* Serving vLLM models through {maas} is a Technology Preview feature in
+*Technology Preview.* Serving vLLM models directly through {maas} is a Technology Preview feature in
 {rhoai} {rhoai_version}. APIs and behaviour may change; it is not supported for production use.
 ====
 
@@ -215,10 +215,10 @@ oc rollout restart deploy/maas-ui -n redhat-ods-applications
 oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=60s
 ----
 
-*Patch `maas-ui` so the pod reaches the gateway's external hostname.* On this cluster the pod
+Patch `maas-ui` so the pod reaches the gateway's external hostname. On this cluster the pod
 network cannot route to the external ingress VIP — patch the deployment with a `hostAliases` entry
 so the pod resolves the gateway hostname directly to the gateway service:
-+
+
 [source,bash,role="execute"]
 ----
 GW_IP=$(oc get svc -n openshift-ingress \
@@ -233,12 +233,12 @@ oc patch deploy maas-ui -n redhat-ods-applications --type=json \
 
 oc rollout status deploy/maas-ui -n redhat-ods-applications --timeout=60s
 ----
-+
+
 NOTE: This step is specific to this lab environment where the pod network cannot route to the
 cluster's external ingress VIP. In production the `maas-ui` pod would resolve the gateway
 hostname normally.
 
-*LoadBalancer (cloud — AWS/ROSA/OSD, or on-prem with MetalLB).* Only use this if your cluster has a
+*LoadBalancer (cloud — AWS/ROSA/OSD, or on-prem with MetalLB). DO NOT USE THIS IN THIS LAB* Only use this if your cluster has a
 LoadBalancer provider; otherwise the gateway `Service` stays `<pending>` and the gateway never reaches
 `Programmed=True`:
 
@@ -287,8 +287,8 @@ oc patch console.operator.openshift.io cluster --type=json \
   -p '[{"op":"add","path":"/spec/plugins/-","value":"kuadrant-console-plugin"}]'
 ----
 
-The console reloads after a few seconds; the *Connectivity Link* and *Connectivity Link API
-Catalog* menus then appear in the left nav.
+The console reloads after a few seconds; you may need to login again;
+the *Connectivity Link* and *Connectivity Link API Catalog* menus then appear in the left nav.
 ====
 
 image::11-rhcl-dashboard.png[RHCL Dashboard,link=self,window=blank,width=800]
@@ -408,18 +408,6 @@ oc create secret generic prometheus-web-tls-ca -n redhat-ods-monitoring \
 
 # 3) Force Prometheus to remount the secret, then wait for the stack to go Available.
 oc delete pod -l app.kubernetes.io/name=prometheus -n redhat-ods-monitoring --ignore-not-found
-oc wait --for=condition=Available monitoringstack/data-science-monitoringstack \
-  -n redhat-ods-monitoring --timeout=10m
-----
-endif::[]
-ifeval::["{rhoai_version}" == "3.5"]
-. Create the `PersesGlobalDatasource` for the Usage dashboard tab:
-+
-NOTE: {rhoai-short} {rhoai_version} fixes the `caCert.namespace` bug and the `prometheus-web-tls-ca` ConfigMap/Secret mismatch. However, the *Usage* dashboard tab is rendered by a `PersesDashboard` deployed in the `redhat-ods-applications` project. Perses resolves datasources per-project, so the namespaced `PersesDatasource` in `redhat-ods-monitoring` is invisible to it. A `PersesGlobalDatasource` is cluster-scoped and visible to all Perses projects.
-+
-[source,bash,role="execute"]
-----
-oc apply -k manifests/05-maas/observability-datasource/kustomization-35.yaml
 oc wait --for=condition=Available monitoringstack/data-science-monitoringstack \
   -n redhat-ods-monitoring --timeout=10m
 ----
@@ -626,7 +614,7 @@ oc get llminferenceservice qwen25-05b-maas -n {project_name}
 ifeval::["{rhoai_version}" == "3.5"]
 [NOTE]
 ====
-*Acknowledge the kserve upgrade gate (z-stream updates only).* When a z-stream update is available
+*Acknowledge the kserve upgrade gate (z-stream updates only). YOU DO NOT NEED DO THIS IN THIS LAB.* When a z-stream update is available
 (e.g. 3.5.0 → 3.5.1), the operator's upgrade-gate mechanism detects `LLMInferenceService` workloads
 and checks whether Authorino has application-level TLS enabled on its gRPC listener. In the Kuadrant
 architecture, the `kuadrant-system` namespace has no Istio sidecars and Authorino's listener TLS is
@@ -647,9 +635,11 @@ gate checks for.
 ====
 endif::[]
 
-The model is serving through the gateway. Now let's wire up the governance layer: subscription, auth policy, and telemetry.
+The model is serving through the gateway. We can see the deployed model in the RHOAI dashboard.
 
 image::13-serving-cpu-model-maas.png[Serving CPU Model as a Service,link=self,window=blank,width=800]
+
+Now let's wire up the governance layer: subscription, auth policy, and telemetry.
 
 == Exercise 5: Publish and govern the model
 
@@ -735,11 +725,10 @@ oc apply -k manifests/05-maas/subscription
 Each manifest pins its own namespace, so the command has *no* `-n` flag. The `MaaSModelRef` lands
 in the workshop project (`{project_name}`, where the `LLMInferenceService` lives), while the
 `MaaSSubscription` and `MaaSAuthPolicy` land in `models-as-a-service` — the only namespace
-`maas-api` reads subscriptions from (its `MAAS_SUBSCRIPTION_NAMESPACE`). A subscription applied
-anywhere else is silently ignored and `/maas-api/v1/models` returns an empty catalog. Both grant
-access to the `system:authenticated:oauth` group — the group the OpenShift OAuth/OIDC identity
-actually presents; plain `system:authenticated` never matches and every call is denied (403).
+`maas-api` reads subscriptions from (its `MAAS_SUBSCRIPTION_NAMESPACE`).
 ====
++
+We can see the subscription and auth policy in the RHOAI dashboard.
 +
 image::14-maas-subscription-maas-model.png[MaaS Subscription and MaaS Model,link=self,window=blank,width=800]
 
@@ -806,14 +795,6 @@ spec:
 oc apply -k manifests/05-maas/telemetry
 ----
 
-[NOTE]
-====
-The singleton `Tenant` (`default-tenant`) is bootstrapped automatically by the `maas-controller`
-once MaaS is Managed and {rhcl} is installed — the workshop does not create one. If the controller
-is crash-looping, it is almost always waiting on the Kuadrant `TokenRateLimitPolicy` CRD from
-Exercise 2; confirm that step completed.
-====
-
 === Verify
 
 * All three MaaS custom resources exist and are ready:
@@ -823,14 +804,15 @@ The model also appears in the *Models as a Service* view in the {rhoai-short} Se
 endif::[]
 ifeval::["{rhoai_version}" == "3.5"]
 +
-The model appears in *Gen AI studio -> AI asset endpoints* (not in the Settings menu — MaaS
-subscriptions and auth policies are managed via the standalone MaaS UI in {rhoai-short} {rhoai_version}).
+The model appears in *Gen AI studio -> AI asset endpoints* in the RHOAI dashboard named `publishers/rhoai-deploy/models/qwen25-05b` under the `rhoai-deploy` project. You may need to refresh the page to see the model.
++
+image::15-maas-ai-asset-endpoints.png[MaaS AI Asset Endpoints,link=self,window=blank,width=800]
 endif::[]
 +
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get maasmodelref -n {project_name}
-# The subscription and auth policy land in models-as-a-service (see the note above), not the project.
+# The subscription and auth policy land in models-as-a-service.
 oc get maassubscription,maasauthpolicy -n models-as-a-service
 ----
 * The telemetry resources list `latency-per-subscription` and `maas-telemetry`:
@@ -843,23 +825,25 @@ oc get telemetry,telemetrypolicy -n openshift-ingress
   *Cluster*, *Models*, *LLM Traffic*, *LLM Utilization*, *Usage*, and *LLM Performance*
   should all now be present. The *Usage* tab will populate with token consumption data after
   you generate traffic in Exercises 6 and 7.
++
+image::44-maas-observe-ready.png[MaaS Observe Ready,link=self,window=blank,width=800]
 
 Governance is in place. Let's mint an API key and make your first governed inference request.
-
-image::15-maas-ai-asset-endpoints.png[MaaS AI Asset Endpoints,link=self,window=blank,width=800]
 
 == Exercise 6: Mint an API key and call the model
 
 MaaS API Keys can be created from the {rhoai-short} dashboard or from the CLI. We are going to use the CLI for this exercise,
-however, you can create an API key from the dashboard by clicking on the "API Keys" tab and select a subscription from the dropdown:
+however, to show you how - you can create an API key from the dashboard by clicking on the "API Keys" tab and select a subscription from the dropdown - try this now.
 
 image::26-maas-api-key-create.png[MaaS API Key Create,link=self,window=blank,width=800]
 
-and then clicking the "Create API Key" button.
+and then clicking the "Create API Key" button. When using the dashboard, you should copy the API key to your clipboard for later use.
 
 image::27-maas-api-key.png[MaaS API Key,link=self,window=blank,width=800]
 
-When using the CLI, MaaS issues API keys through the `maas-api` endpoint, not as a Kubernetes Secret. Authenticate with
+Let's now use the CLI to mint an API key - run the following commands in the Terminal tab:
+
+When using the CLI, MaaS issues API keys through the `maas-api` endpoint. Authenticate with
 your OpenShift token to mint a key bound to the subscription, then call the model through the
 gateway.
 
@@ -875,9 +859,10 @@ export API_KEY=$(curl -sSk -X POST "${HOST}/maas-api/v1/api-keys" \
   -d '{"name":"workshop-key","expiresIn":"1h","subscription":"qwen25-05b-demo"}' | jq -r .key)
 echo "API key: ${API_KEY:0:12}..."
 ----
++
+The API Key should be returned in the response.
 
-. Discover the published model id from the catalog. The gateway supports two routing modes —
-  *body-based* (recommended) and *path-based*:
+. Discover the published model id from the catalog.
 +
 [source,bash,role="execute"]
 ----
@@ -905,6 +890,8 @@ echo "Model ID:   $MODEL_ID"
 echo "Model name: $MODEL_NAME"
 echo "Model path: ${HOST}${MODEL_PATH}"
 ----
++
+The gateway supports two routing modes — *body-based* (recommended) and *path-based*.
 +
 --
 *Body-based routing (recommended).* Send all requests to `${HOST}/v1/chat/completions` and
@@ -954,7 +941,7 @@ even time out once — run it again and it returns in ~2s.
 === Verify
 
 * The chat request returns *HTTP 200* with a completion. A request with no `Authorization` header
-  returns *HTTP 401*.
+  returns *HTTP 401*. If you get a `jq: parse error` error, you may be hitting a *HTTP 429 - Too Many Requests* - wait a few seconds and try again.
 
 Now let's verify the subscription limit is actually being enforced — not just set.
 
@@ -1008,8 +995,8 @@ kserve_vllm:kv_cache_usage_perc
 +
 image::18-maas-vllm-metrics.png[vLLM Metrics,link=self,window=blank,width=800]
 +
-NOTE: These are PromQL expressions — paste them into the *Observe -> Metrics* query box in the
-console ({metrics_console_url}), not the terminal. `prompt_tokens` are the input tokens the engine
+NOTE: These are PromQL expressions — paste them into the *Observe -> Metrics* query box in the OpenShift
+console, not the terminal. `prompt_tokens` are the input tokens the engine
 read; `generation_tokens` are the output tokens it produced. `kv_cache_usage_perc` is the KV-cache
 gauge (the older `gpu_cache_usage_perc` name is gone in this vLLM build); it sits near 0 on a
 lightly loaded CPU model and rises under concurrent load. Queue depth
@@ -1116,27 +1103,49 @@ endif::[]
 
 . In the {rhoai-short} dashboard, open *Gen AI studio -> Playground* (reload the dashboard if the
   nav entry has not appeared yet). Use the {project_name} Project. If this is the first time the project uses the playground, click
-  *Configure playground* to provision the per-project
+  *Create playground* to provision the per-project
 ifeval::["{rhoai_version}" == "3.4"]
 Llama Stack
 endif::[]
 ifeval::["{rhoai_version}" == "3.5"]
 OGX
 endif::[]
-distribution, then select the `qwen25-05b` model and send a prompt.
+distribution, then select the `qwen25-05b` model.
 +
-image::21-maas-genai-playground.png[MaaS Gen AI Playground,link=self,window=blank,width=800]
+image::45-create-playground.png[MaaS Create Playground,link=self,window=blank,width=800]
++
+It will take a minute or two to provision the playground.
 
+. Before we query the model, we need to update the token rate limit.
++
 ifeval::["{rhoai_version}" == "3.4"]
-NOTE: You can update the token rate limit (100 tokens / 1 minute) in the *Settings -> Subscriptions* menu.
+IMPORTANT: Update the token rate limit (100 tokens / 1 minute) in the *Settings -> Subscriptions* menu.
   The playground routes through the MaaS gateway, so it's also subject to the 100-tokens/min subscription
   limit — even a short chat can trip a *HTTP 429*.
 endif::[]
 ifeval::["{rhoai_version}" == "3.5"]
-NOTE: You can update the token rate limit (100 tokens / 1 minute) in the *Settings -> MaaS Governance ->
+IMPORTANT: Update the token rate limit (100 tokens / 1 minute) in the *Settings -> MaaS Governance ->
   Subscriptions* menu. The playground routes through the MaaS gateway, so it's also subject to the
   100-tokens/min subscription limit — even a short chat can trip a *HTTP 429*.
 endif::[]
++
+Edit the subscription:
++
+image::46-edit-subscription.png[MaaS Edit Subscription,link=self,window=blank,width=800]
++
+to update the token rate limit:
++
+image::47-update-rate-limit.png[MaaS Edit Subscription,link=self,window=blank,width=800]
++
+to 1000 tokens / 1 minute:
++
+image::48-save-rate-limit.png[MaaS Edit Subscription,link=self,window=blank,width=800]
+
+. Go back to the Playground now. Select the `qwen25-05b` model and send a prompt - in this example we ask `why is the sky blue?`.
++
+image::21-maas-genai-playground.png[MaaS Gen AI Playground,link=self,window=blank,width=800]
++
+You should see the response in the playground. If you get a `429 Too Many Requests` error, you may have exceeded the token rate limit and try again.
 
 === Verify
 
