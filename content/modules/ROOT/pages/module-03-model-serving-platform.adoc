@@ -55,6 +55,8 @@ multi-model (ModelMesh) platform has been removed, so the older
 . In the {rhoai-short} dashboard, go to *Settings -> Cluster settings -> General settings*.
 
 . Under *Model deployments*, ensure *Enable model serving* is on.
++
+image::43-model-serving-settings.png[Model serving settings,link=self,window=blank,width=800]
 
 . Alternatively, confirm KServe is managed in the DSC:
 +
