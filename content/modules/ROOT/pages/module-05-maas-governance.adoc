@@ -1101,22 +1101,7 @@ oc wait --for=condition=OGXReady datasciencecluster/default-dsc --timeout=5m
 ----
 endif::[]
 
-. In the {rhoai-short} dashboard, open *Gen AI studio -> Playground* (reload the dashboard if the
-  nav entry has not appeared yet). Use the {project_name} Project. If this is the first time the project uses the playground, click
-  *Create playground* to provision the per-project
-ifeval::["{rhoai_version}" == "3.4"]
-Llama Stack
-endif::[]
-ifeval::["{rhoai_version}" == "3.5"]
-OGX
-endif::[]
-distribution, then select the `qwen25-05b` model.
-+
-image::45-create-playground.png[MaaS Create Playground,link=self,window=blank,width=800]
-+
-It will take a minute or two to provision the playground.
-
-. Before we query the model, we need to update the token rate limit.
+. Before we use the playground to query the model, we need to update the token rate limit.
 +
 ifeval::["{rhoai_version}" == "3.4"]
 IMPORTANT: Update the token rate limit (100 tokens / 1 minute) in the *Settings -> Subscriptions* menu.
@@ -1141,11 +1126,50 @@ to 1000 tokens / 1 minute:
 +
 image::48-save-rate-limit.png[MaaS Edit Subscription,link=self,window=blank,width=800]
 
-. Go back to the Playground now. Select the `qwen25-05b` model and send a prompt - in this example we ask `why is the sky blue?`.
+. In the {rhoai-short} dashboard, open *Gen AI studio -> Playground* (reload the dashboard if the
+  nav entry has not appeared yet). Use the {project_name} Project. If this is the first time the project uses the playground, click
+  *Create playground* to provision the per-project
+ifeval::["{rhoai_version}" == "3.4"]
+Llama Stack
+endif::[]
+ifeval::["{rhoai_version}" == "3.5"]
+OGX
+endif::[]
+distribution, then select the `qwen25-05b` model.
++
+image::45-create-playground.png[MaaS Create Playground,link=self,window=blank,width=800]
++
+It will take a minute or two to provision the playground.
+
+. Patch the playground so its Llama Stack backend can reach the gateway. The playground
+  deployment calls the gateway through its external hostname, and on this cluster the pod
+  network cannot route to the external ingress VIP — add a `hostAliases` entry so the pod
+  resolves the gateway hostname directly to the gateway service:
++
+[source,bash,role="execute",subs="attributes"]
+----
+GW_IP=$(oc get svc -n openshift-ingress \
+  -l gateway.networking.k8s.io/gateway-name=maas-default-gateway \
+  -o jsonpath='{.items[0].spec.clusterIP}')
+GW_HOST=$(oc get svc -n openshift-ingress \
+  -l gateway.networking.k8s.io/gateway-name=maas-default-gateway \
+  -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')
+
+oc patch deploy lsd-genai-playground -n {project_name} --type=merge \
+  -p '{"spec":{"template":{"spec":{"hostAliases":[{"ip":"'"${GW_IP}"'","hostnames":["'"${GW_HOST}"'"]}]}}}}'
+
+oc rollout status deploy/lsd-genai-playground -n {project_name} --timeout=120s
+----
++
+NOTE: Same environment-specific workaround as the `maas-ui` patch in Module 5 Exercise 3.
+Without it, every playground chat fails with `[server_error] An unexpected error occurred
+while generating the response` because the request never reaches the gateway.
+
+. In the Playground, the model and subscription should be selected and ready to use. Send a prompt - in this example we ask `why is the sky blue?`.
 +
 image::21-maas-genai-playground.png[MaaS Gen AI Playground,link=self,window=blank,width=800]
 +
-You should see the response in the playground. If you get a `429 Too Many Requests` error, you may have exceeded the token rate limit and try again.
+You should see the response in the playground. If you start to get a `429 Too Many Requests` error, you have exceeded the token rate limit.
 
 === Verify
 
