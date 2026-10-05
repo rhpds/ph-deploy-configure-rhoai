@@ -812,9 +812,25 @@ endif::[]
 [source,bash,role="execute",subs="attributes"]
 ----
 oc get maasmodelref -n {project_name}
-# The subscription and auth policy land in models-as-a-service.
+# The subscription and auth policy land in the tenant namespace.
 oc get maassubscription,maasauthpolicy -n models-as-a-service
 ----
+ifeval::["{rhoai_version}" == "3.5"]
+* The MaaS controller auto-provisioned the default tenant — an `AITenant` named
+  `models-as-a-service` that owns the namespace your subscription and auth policy land in,
+  the per-tenant `maas-api` service, and the auth/rate-limit wiring to `maas-default-gateway`:
++
+[source,bash,role="execute"]
+----
+oc get aitenant -A
+----
++
+NOTE: `AITenant` is the {maas} multi-tenancy object (Technology Preview). One CR = one
+tenant: the controller creates the tenant namespace, deploys the per-tenant API service,
+and binds it to the gateway — the gateway and identity provider are external
+prerequisites. This lab uses the default tenant, so there is nothing to create; additional
+tenants isolate models, API keys, and usage data from each other.
+endif::[]
 * The telemetry resources list `latency-per-subscription` and `maas-telemetry`:
 +
 [source,bash,role="execute"]
@@ -1218,6 +1234,7 @@ This returns `True`.
 
 * Ordering is critical: the database must be running before MaaS is enabled in the DSC, and the serving-path operators (LWS, JobSet) must be installed before MaaS activation
 * `LLMInferenceService` is MaaS's gateway-native object — it registers directly with the gateway; `MaaSModelRef` does not accept a plain `InferenceService`
+* Everything hangs off a default `AITenant` (`models-as-a-service`) — the multi-tenancy object whose controller creates the tenant namespace, the per-tenant `maas-api` service, and the gateway binding; additional tenants (Technology Preview) isolate models, API keys, and usage data
 * Two metric paths feed the dashboard: vLLM engine metrics via User Workload Monitoring → Thanos, and MaaS token telemetry via Limitador → Kuadrant `TelemetryPolicy`
 
 **Next steps:**
