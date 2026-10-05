@@ -8,12 +8,6 @@ Serving a model is not enough for shared environments — access must be governe
 subscription and rate-limit layer over model serving, backed by an API gateway
 ({rhcl} / Kuadrant) and a PostgreSQL-backed API-key store.
 
-[IMPORTANT]
-====
-*Technology Preview.* Serving vLLM models directly through {maas} is a Technology Preview feature in
-{rhoai} {rhoai_version}. APIs and behaviour may change; it is not supported for production use.
-====
-
 == Learning objectives
 
 By the end of this module you will be able to:
@@ -1247,9 +1241,7 @@ Continue to xref:module-05a-external-models.adoc[Module 5a] to publish external 
 ** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/govern_llm_access_with_models-as-a-service/index[Govern LLM access with Models-as-a-Service]
 ** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/experimenting_with_models_in_the_gen_ai_playground/index[Experimenting with models in the gen AI playground]
 ** https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/{rhoai_version}/html/managing_and_monitoring_models/index[Managing and monitoring models]
-** https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.3/html/installing_connectivity_link/index[Red Hat Connectivity Link 1.3 — Installing Connectivity Link]
+** https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.4/html/installing_connectivity_link/index[Red Hat Connectivity Link 1.4 — Installing Connectivity Link]
 * Reference code:
-** https://github.com/jharmison-redhat/maas-from-scratch[jharmison-redhat/maas-from-scratch]
 ** https://github.com/opendatahub-io/models-as-a-service[opendatahub-io/models-as-a-service] (upstream)
 ** https://github.com/vllm-project/vllm[vllm-project/vllm] (engine metrics)
-

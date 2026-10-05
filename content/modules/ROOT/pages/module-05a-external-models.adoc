@@ -407,8 +407,8 @@ echo "https://sim-dashboard-llm-katan.${CLUSTER_DOMAIN}/dashboard"
 ----
 +
 You will need to rerun the curl loop above to see the request/response detail in the dashboard.
-+
-The dashboard shows per-provider request counts, token consumption, response times, and a
+
+. The dashboard shows per-provider request counts, token consumption, response times, and a
 live event stream (via WebSocket) of every request the simulator processes. It updates in
 real time — run the Exercise 2 curl loop again and watch the counters increment. You can drill
 down to the individual request details by clicking on the request in the dashboard.
