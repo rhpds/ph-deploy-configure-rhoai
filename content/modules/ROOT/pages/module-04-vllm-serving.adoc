@@ -273,6 +273,8 @@ resource requests.
 
 image::08-vllm-cpu-runtime-args.png[vLLM CPU Runtime Args,link=self,window=blank,width=800]
 
+You can find upstream documentation for the available **vLLM engine arguments** https://docs.vllm.ai/en/stable/configuration/engine_args/[here].
+
 == Module summary
 
 **What you accomplished:**

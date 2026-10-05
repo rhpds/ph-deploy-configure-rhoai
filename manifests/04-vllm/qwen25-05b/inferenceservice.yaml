@@ -14,7 +14,7 @@ metadata:
     # "Unknown Serving Runtime". They must match the ServingRuntime template in
     # redhat-ods-applications (oc get template -n redhat-ods-applications | grep vllm-cpu-x86).
     opendatahub.io/template-name: "vllm-cpu-x86-runtime-template"
-    opendatahub.io/template-display-name: "vLLM CPU (x86) ServingRuntime for KServe - Tech Preview"
+    opendatahub.io/template-display-name: "vLLM CPU (x86) ServingRuntime for KServe"
     serving.kserve.io/deploymentMode: RawDeployment
     # Require token auth on the external route (the dashboard's "Require token authentication").
     # ODH injects a kube-rbac-proxy sidecar in front of vLLM; every request must carry a
