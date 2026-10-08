@@ -221,8 +221,10 @@
           Authorization: "Bearer {{ caller_token.stdout }}"
         validate_certs: false
         status_code: 200
-      retries: 5
-      delay: 10
+      register: inference_result
+      until: inference_result.status == 200
+      retries: 15
+      delay: 15
 
     # ========================================================================
     # MODULE 5 — MaaS Governance
