@@ -568,6 +568,22 @@
       retries: 20
       delay: 15
 
+    # MaaS API key minting requires a real user identity, not a ServiceAccount.
+    # The ZT runner runs as the showroom SA, so we log in as admin first.
+    - name: "M5-Ex6 | Load user_data for admin credentials"
+      ansible.builtin.include_vars:
+        file: /user_data/user_data.yml
+      when: openshift_cluster_admin_password is not defined
+
+    - name: "M5-Ex6 | Login as admin for MaaS API key minting"
+      ansible.builtin.command: >-
+        oc login {{ openshift_api_server_url }}
+        --username={{ openshift_cluster_admin_username }}
+        --password={{ openshift_cluster_admin_password }}
+        --insecure-skip-tls-verify
+      changed_when: false
+      no_log: true
+
     - name: "M5-Ex6 | Mint API key and test inference"
       ansible.builtin.shell: |
         export CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
