@@ -569,18 +569,31 @@
       delay: 15
 
     # MaaS API key minting requires a real user identity, not a ServiceAccount.
-    # The ZT runner runs as the showroom SA, so we log in as admin first.
+    # `oc login -u/-p` hangs inside runner pods (CNV hairpin blocks OAuth route).
+    # Obtain an admin token via the OAuth ClusterIP instead.
     - name: "M5-Ex6 | Load user_data for admin credentials"
       ansible.builtin.include_vars:
         file: /user_data/user_data.yml
       when: openshift_cluster_admin_password is not defined
 
-    - name: "M5-Ex6 | Login as admin for MaaS API key minting"
-      ansible.builtin.command: >-
-        oc login {{ openshift_api_server_url }}
-        --username={{ openshift_cluster_admin_username }}
-        --password={{ openshift_cluster_admin_password }}
-        --insecure-skip-tls-verify
+    - name: "M5-Ex6 | Obtain admin OAuth token for MaaS API key minting"
+      ansible.builtin.shell: |
+        OAUTH_HOST=$(oc get -n openshift-authentication route oauth-openshift -o jsonpath='{.spec.host}')
+        OAUTH_IP=$(oc get svc oauth-openshift -n openshift-authentication -o jsonpath='{.spec.clusterIP}' 2>/dev/null || echo "")
+        if [ -n "${OAUTH_IP}" ]; then
+          RESOLVE="--resolve ${OAUTH_HOST}:443:${OAUTH_IP}"
+        else
+          RESOLVE=""
+        fi
+        LOCATION=$(curl -sSk -D- -o/dev/null ${RESOLVE} \
+          -u '{{ openshift_cluster_admin_username }}:{{ openshift_cluster_admin_password }}' \
+          -H 'X-CSRF-Token: xxx' \
+          "https://${OAUTH_HOST}/oauth/authorize?response_type=token&client_id=openshift-challenging-client" \
+          | grep -i '^location:')
+        TOKEN=$(echo "${LOCATION}" | sed -n 's/.*access_token=\([^&]*\).*/\1/p' | tr -d '\r')
+        [ -n "${TOKEN}" ] || { echo "Failed to obtain admin token"; exit 1; }
+        echo "${TOKEN}"
+      register: admin_token
       changed_when: false
       no_log: true
 
@@ -589,7 +602,7 @@
         export CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
         export HOST="https://maas.${CLUSTER_DOMAIN}"
         export API_KEY=$(curl -sSk -X POST "${HOST}/maas-api/v1/api-keys" \
-          -H "Authorization: Bearer $(oc whoami -t)" \
+          -H "Authorization: Bearer {{ admin_token.stdout }}" \
           -H "Content-Type: application/json" \
           -d '{"name":"e2e-key-'$RANDOM'","expiresIn":"1h","subscription":"qwen25-05b-demo"}' | jq -r .key)
         # Wait for model to appear in catalog

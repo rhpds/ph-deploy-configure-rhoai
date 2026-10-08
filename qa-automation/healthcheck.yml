@@ -43,14 +43,24 @@
       changed_when: false
 
     # -- Check 2: Admin credentials work -------------------------------------
-    # Uses the credentials passed by AgnosticV provisioning.
-    # no_log prevents passwords from appearing in the runner output stream.
+    # `oc login -u/-p` hangs inside runner pods (CNV hairpin blocks OAuth
+    # route). Use curl to the OAuth token endpoint via ClusterIP instead.
     - name: Admin credentials are working
-      ansible.builtin.command: >-
-        oc login --insecure-skip-tls-verify
-        -u {{ openshift_cluster_admin_username | default('admin') }}
-        -p {{ openshift_cluster_admin_password }}
-        {{ openshift_api_server_url }}
+      ansible.builtin.shell: |
+        OAUTH_URL=$(oc get -n openshift-authentication route oauth-openshift -o jsonpath='{.spec.host}')
+        OAUTH_IP=$(oc get svc oauth-openshift -n openshift-authentication -o jsonpath='{.spec.clusterIP}' 2>/dev/null || echo "")
+        if [ -n "${OAUTH_IP}" ]; then
+          TARGET="https://${OAUTH_IP}"
+          RESOLVE="--resolve ${OAUTH_URL}:443:${OAUTH_IP}"
+        else
+          TARGET="https://${OAUTH_URL}"
+          RESOLVE=""
+        fi
+        HTTP_CODE=$(curl -sSk -o /dev/null -w '%{http_code}' ${RESOLVE} \
+          -u '{{ openshift_cluster_admin_username | default("admin") }}:{{ openshift_cluster_admin_password }}' \
+          -H 'X-CSRF-Token: xxx' \
+          "${TARGET}/oauth/authorize?response_type=token&client_id=openshift-challenging-client")
+        [ "${HTTP_CODE}" = "302" ] || { echo "OAuth returned ${HTTP_CODE}, expected 302"; exit 1; }
       changed_when: false
       no_log: true
 
