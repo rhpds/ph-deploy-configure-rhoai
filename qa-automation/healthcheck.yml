@@ -35,6 +35,8 @@
   module_defaults:
     group/kubernetes.core.k8s:
       kubeconfig: "{{ k8s_kubeconfig | default(omit) }}"
+  environment:
+    KUBECONFIG: "{{ k8s_kubeconfig | default(omit) }}"
   tasks:
 
     # -- Check 1: Can we reach the cluster at all? ---------------------------
@@ -50,16 +52,14 @@
         OAUTH_URL=$(oc get -n openshift-authentication route oauth-openshift -o jsonpath='{.spec.host}')
         OAUTH_IP=$(oc get svc oauth-openshift -n openshift-authentication -o jsonpath='{.spec.clusterIP}' 2>/dev/null || echo "")
         if [ -n "${OAUTH_IP}" ]; then
-          TARGET="https://${OAUTH_IP}"
           RESOLVE="--resolve ${OAUTH_URL}:443:${OAUTH_IP}"
         else
-          TARGET="https://${OAUTH_URL}"
           RESOLVE=""
         fi
         HTTP_CODE=$(curl -sSk -o /dev/null -w '%{http_code}' ${RESOLVE} \
           -u '{{ openshift_cluster_admin_username | default("admin") }}:{{ openshift_cluster_admin_password }}' \
           -H 'X-CSRF-Token: xxx' \
-          "${TARGET}/oauth/authorize?response_type=token&client_id=openshift-challenging-client")
+          "https://${OAUTH_URL}/oauth/authorize?response_type=token&client_id=openshift-challenging-client")
         [ "${HTTP_CODE}" = "302" ] || { echo "OAuth returned ${HTTP_CODE}, expected 302"; exit 1; }
       changed_when: false
       no_log: true
