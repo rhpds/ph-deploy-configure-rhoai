@@ -45,6 +45,29 @@ and operate {rhoai} {rhoai_version}.
 * No object storage required — model weights are pulled from public OCI modelcar images, and the
   MaaS PostgreSQL database is deployed in-cluster during Module 5
 
+.Minimum requirements for running this lab
+[cols="2,1,2,3",options="header"]
+|===
+|Option |Nodes |Per-node sizing |Notes
+
+|*1. SNO* (Single Node OpenShift)
+|1
+|16 CPU x 64 GB RAM
+|Not sufficient for this lab - the {rhoai-short} operators and workloads cannot all fit on a
+ single node, even at this size. You can run the lab on a SNO, but you will need to use a larger node size.
+
+|*2. SNO + 1 Worker* (this lab)
+|2
+|32 CPU x 128 GB RAM
+|The configuration used by this lab - one SNO
+ control-plane node plus a single worker node, so operators and workloads have room to schedule.
+
+|*3. 3-Node HA cluster*
+|3
+|32 CPU x 128 GB RAM
+|Fully supported HA option with the same per-node sizing, plus additional aggregate capacity.
+|===
+
 [IMPORTANT]
 ====
 This guide is a companion to — not a replacement for — the official
