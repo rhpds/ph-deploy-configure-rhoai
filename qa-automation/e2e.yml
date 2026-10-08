@@ -200,12 +200,23 @@
       retries: 15
       delay: 30
 
-    - name: "M4 | Get inference URL"
+    - name: "M4 | Get inference internal URL"
+      ansible.builtin.shell: >-
+        oc get inferenceservice qwen25-05b -n {{ project_name }}
+        -o jsonpath='{.status.address.url}'
+      register: isvc_internal_url
+      changed_when: false
+
+    - name: "M4 | Get inference external URL (fallback)"
       ansible.builtin.command: >-
         oc get inferenceservice qwen25-05b -n {{ project_name }}
         -o jsonpath='{.status.url}'
       register: isvc_url
       changed_when: false
+
+    - name: "M4 | Set inference URL (prefer internal)"
+      ansible.builtin.set_fact:
+        isvc_verify_url: "{{ isvc_internal_url.stdout | default(isvc_url.stdout, true) }}"
 
     - name: "M4 | Create caller token"
       ansible.builtin.command: >-
@@ -215,7 +226,7 @@
 
     - name: "M4 | VERIFY — inference returns 200"
       ansible.builtin.uri:
-        url: "{{ isvc_url.stdout }}/v1/models"
+        url: "{{ isvc_verify_url }}/v1/models"
         method: GET
         headers:
           Authorization: "Bearer {{ caller_token.stdout }}"
@@ -599,24 +610,40 @@
       changed_when: false
       no_log: true
 
+    - name: "M5-Ex6 | Resolve MaaS gateway ClusterIP for hairpin bypass"
+      ansible.builtin.shell: |
+        GW_IP=$(oc get svc -n openshift-ingress \
+          -l gateway.networking.k8s.io/gateway-name=maas-default-gateway \
+          -o jsonpath='{.items[0].spec.clusterIP}')
+        GW_HOST=$(oc get svc -n openshift-ingress \
+          -l gateway.networking.k8s.io/gateway-name=maas-default-gateway \
+          -o jsonpath='{.items[0].status.loadBalancer.ingress[0].hostname}')
+        echo "${GW_HOST}|${GW_IP}"
+      register: maas_gw_info
+      changed_when: false
+
+    - name: "M5-Ex6 | Set MaaS gateway facts"
+      ansible.builtin.set_fact:
+        maas_gw_host: "{{ maas_gw_info.stdout.split('|')[0] }}"
+        maas_gw_ip: "{{ maas_gw_info.stdout.split('|')[1] }}"
+
     - name: "M5-Ex6 | Mint API key and test inference"
       ansible.builtin.shell: |
-        export CLUSTER_DOMAIN=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')
-        export HOST="https://maas.${CLUSTER_DOMAIN}"
-        export API_KEY=$(curl -sSk -X POST "${HOST}/maas-api/v1/api-keys" \
+        MAAS_HOST="{{ maas_gw_host }}"
+        RESOLVE="--resolve ${MAAS_HOST}:443:{{ maas_gw_ip }}"
+        HOST="https://${MAAS_HOST}"
+        export API_KEY=$(curl -sSk ${RESOLVE} -X POST "${HOST}/maas-api/v1/api-keys" \
           -H "Authorization: Bearer {{ admin_token.stdout }}" \
           -H "Content-Type: application/json" \
           -d '{"name":"e2e-key-'$RANDOM'","expiresIn":"1h","subscription":"qwen25-05b-demo"}' | jq -r .key)
-        # Wait for model to appear in catalog
         for attempt in $(seq 1 30); do
-          MODEL_JSON=$(curl -sSk "${HOST}/maas-api/v1/models" -H "Authorization: Bearer ${API_KEY}")
+          MODEL_JSON=$(curl -sSk ${RESOLVE} "${HOST}/maas-api/v1/models" -H "Authorization: Bearer ${API_KEY}")
           echo "$MODEL_JSON" | jq -e '[.data[]? | select(.ready==true)][0]' >/dev/null 2>&1 && break
           echo "models catalog not ready yet (attempt ${attempt}/30); retrying..."; sleep 10
         done
         MODEL_ID=$(echo "$MODEL_JSON" | jq -re '[.data[] | select(.ready==true)][0].id')
-        # Test body-based routing (retry transient gateway errors)
         for attempt in $(seq 1 5); do
-          RESPONSE=$(curl -sSk "${HOST}/v1/chat/completions" \
+          RESPONSE=$(curl -sSk ${RESOLVE} "${HOST}/v1/chat/completions" \
             -H "Authorization: Bearer ${API_KEY}" \
             -H "Content-Type: application/json" \
             -d "{\"model\":\"${MODEL_ID}\",\"messages\":[{\"role\":\"user\",\"content\":\"Hello\"}],\"max_tokens\":50}")
